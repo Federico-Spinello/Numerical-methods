@@ -92,6 +92,62 @@ def get_color(index):
     return COLORS[index % len(COLORS)]
 
 
+def bootstrap_peak_error(T_data, O_data, err_O_data, n_bootstrap=1000, window_size=5):
+    """
+    Stima l'errore sulla temperatura del picco usando il metodo bootstrap non parametrico.
+
+    Algoritmo (da Appendice 6.2 del paper):
+    1. Identifica il picco: T_max = T[i_max] dove i_max = argmax O(T)
+    2. Estrae una finestra di (2*window_size + 1) punti attorno al picco
+    3. Esegue n_bootstrap iterazioni:
+       - Genera un campione bootstrap aggiungendo rumore gaussiano N(0, sigma_O(T_i))
+       - Trova il massimo del campione bootstrap
+    4. L'errore è la deviazione standard della distribuzione bootstrap
+
+    Args:
+        T_data: array delle temperature
+        O_data: array dell'osservabile (chi o C)
+        err_O_data: array degli errori sull'osservabile
+        n_bootstrap: numero di iterazioni bootstrap (default 1000)
+        window_size: numero di punti da considerare a sinistra e destra del picco (default 5)
+
+    Returns:
+        T_max: temperatura del picco
+        T_max_err: errore bootstrap sulla temperatura del picco
+    """
+    # Step 1: Trova l'indice del picco
+    idx_max = np.argmax(O_data)
+    T_max_original = T_data[idx_max]
+
+    # Step 2: Estrai finestra attorno al picco (±window_size punti)
+    idx_start = max(0, idx_max - window_size)
+    idx_end = min(len(T_data), idx_max + window_size + 1)
+
+    T_window = T_data[idx_start:idx_end]
+    O_window = O_data[idx_start:idx_end]
+    err_window = err_O_data[idx_start:idx_end]
+
+    # Step 3: Bootstrap
+    T_max_bootstrap = []
+
+    for r in range(n_bootstrap):
+        # Genera campione bootstrap aggiungendo rumore gaussiano N(0, sigma_O)
+        noise = np.random.normal(0, err_window)
+        O_bootstrap = O_window + noise
+
+        # Trova il massimo del campione bootstrap
+        idx_max_boot = np.argmax(O_bootstrap)
+        T_max_boot = T_window[idx_max_boot]
+        T_max_bootstrap.append(T_max_boot)
+
+    T_max_bootstrap = np.array(T_max_bootstrap)
+
+    # Step 4: L'errore è la deviazione standard della distribuzione bootstrap
+    T_max_err = np.std(T_max_bootstrap)
+
+    return T_max_original, T_max_err
+
+
 def save_results(results_dict):
     """
     Salva i risultati dell'analisi in formato testo (risultati.txt).
@@ -116,14 +172,14 @@ def save_results(results_dict):
         f.write("-"*70 + "\n")
         f.write("TEMPERATURA CRITICA\n")
         f.write("-"*70 + "\n")
-        f.write(f"Tc teorico (Onsager):        {results_dict['Tc_theory']:.5f}\n")
+        f.write("(Errori su T_max stimati con bootstrap non parametrico, 1000 iterazioni)\n")
+        f.write("\n")
+        f.write(f"Tc teorico (Onsager):          {results_dict['Tc_theory']:.5f}\n")
         f.write(f"Tc da picchi chi(L):           {results_dict['Tc_peaks']:.4f} +/- {results_dict['Tc_peaks_err']:.4f}\n")
-        f.write(f"  chi^2_red (FSS fit):          {results_dict.get('chi2_red_chi', 0.0):.4f}\n")
-        f.write(f"Tc da picchi C(L):           {results_dict['Tc_heat']:.4f} +/- {results_dict['Tc_heat_err']:.4f}\n")
-        f.write(f"  chi^2_red (FSS fit):          {results_dict.get('chi2_red_C', 0.0):.4f}\n")
-        f.write(f"Tc da Binder crossing:       {results_dict['Tc_binder']:.4f} +/- {results_dict['Tc_binder_err']:.4f}\n")
-        f.write(f"Errore Binder vs teorico:    {results_dict['Tc_binder_error_mK']:.2f} mK\n")
-        f.write(f"Errore percentuale:          {results_dict['Tc_binder_error_pct']:.3f}%\n")
+        f.write(f"  chi^2_red (FSS fit):         {results_dict.get('chi2_red_chi', 0.0):.4f}\n")
+        f.write(f"Tc da picchi C(L):             {results_dict['Tc_heat']:.4f} +/- {results_dict['Tc_heat_err']:.4f}\n")
+        f.write(f"  chi^2_red (FSS fit):         {results_dict.get('chi2_red_C', 0.0):.4f}\n")
+        f.write(f"Tc da Binder crossing:         {results_dict['Tc_binder']:.4f} +/- {results_dict['Tc_binder_err']:.4f}\n")
         f.write("\n")
 
         f.write("-"*70 + "\n")
@@ -132,7 +188,7 @@ def save_results(results_dict):
         f.write(f"gamma/nu misurato:                {results_dict['gamma_nu']:.4f} +/- {results_dict['gamma_nu_err']:.4f}\n")
         f.write(f"gamma/nu teorico:                 {results_dict['gamma_nu_theory']:.4f}\n")
         f.write(f"Errore percentuale:          {results_dict['gamma_nu_error_pct']:.2f}%\n")
-        f.write(f"chi^2_red (collapse chi/L^gamma/nu):   {results_dict.get('chi2_red_scaling', results_dict['gamma_nu_r2']):.4f}\n")
+        f.write(f"chi^2_red (collapse chi/L^gamma/nu):   {results_dict.get('chi2_red_scaling', results_dict['gamma_nu_chi2']):.4f}\n")
 
         f.write("-"*70 + "\n")
         f.write("BINDER CUMULANT\n")
@@ -260,15 +316,17 @@ def plot_susceptibility(data):
     Grafico della suscettività magnetica χ in funzione della temperatura.
     Il picco della suscettività indica la temperatura critica.
     Usa FSS per estrarre Tc: T_max(L) ≈ Tc + a*L^(-1/ν)
+    Gli errori su T_max(L) sono stimati con bootstrap non parametrico (1000 iterazioni).
     Ritorna i valori dei picchi per uso successivo.
     """
     fig, ax = plt.subplots(figsize=(8, 6))
 
     L_values = sorted(data.keys())
     T_max_values = []
+    T_max_errors = []
     L_array = []
 
-    # Plot per ogni dimensione L e trova i picchi
+    # Plot per ogni dimensione L e trova i picchi con errori bootstrap
     for i, L in enumerate(L_values):
         color = get_color(i)
         # Linea principale
@@ -281,27 +339,64 @@ def plot_susceptibility(data):
                         data[L]['chi'] + data[L]['err_chi'],
                         color=color, alpha=0.2, zorder=1)
 
-        # Trova temperatura del picco per questo L
-        idx_max = np.argmax(data[L]['chi'])
-        T_max_values.append(data[L]['T'][idx_max])
+        # Trova temperatura del picco con errore bootstrap per questo L
+        T_max, T_max_err = bootstrap_peak_error(
+            data[L]['T'],
+            data[L]['chi'],
+            data[L]['err_chi'],
+            n_bootstrap=1000,
+            window_size=5
+        )
+        T_max_values.append(T_max)
+        T_max_errors.append(T_max_err)
         L_array.append(L)
 
     # FIT FSS: T_max(L) = Tc + a * L^(-1/nu)
     # Con nu = 1 per Ising 2D: T_max(L) = Tc + a/L
     L_array = np.array(L_array)
     T_max_values = np.array(T_max_values)
+    T_max_errors = np.array(T_max_errors)
 
     def fss_shift(L, Tc, a):
         """T_max(L) = Tc + a * L^(-1/nu) con nu=1"""
         return Tc + a / L
 
-    # Fit con curve_fit
-    popt, pcov = curve_fit(fss_shift, L_array, T_max_values, p0=[T_C_EXACT, 0.5])
+    # Fit pesato con gli errori bootstrap
+    # sigma=T_max_errors fornisce i pesi 1/sigma^2 per il fit
+    # absolute_sigma=True indica che gli errori sono assoluti (non relativi)
+    popt, pcov = curve_fit(
+        fss_shift,
+        L_array,
+        T_max_values,
+        p0=[T_C_EXACT, 0.5],
+        sigma=T_max_errors,
+        absolute_sigma=True
+    )
     Tc_from_peaks, a_fit = popt
     perr = np.sqrt(np.diag(pcov))
     Tc_from_peaks_err = perr[0]
 
+    # Calcolo del chi^2 ridotto per il fit FSS dei picchi chi
+    # Usando gli errori bootstrap come sigma_i
+    T_max_predicted = fss_shift(L_array, Tc_from_peaks, a_fit)
+    residuals_chi = T_max_values - T_max_predicted
+
+    # Numero di parametri del fit (Tc e a)
+    n_params_chi = 2
+
+    # Gradi di liberta: numero di punti - numero di parametri
+    dof_chi = len(T_max_values) - n_params_chi
+
+    # Calcolo del chi^2 ridotto usando gli errori bootstrap
+    # chi^2 = sum((y_obs - y_fit)^2 / sigma_i^2)
+    if dof_chi > 0:
+        chi2_chi = np.sum((residuals_chi / T_max_errors) ** 2)
+        chi2_red_chi = chi2_chi / dof_chi
+    else:
+        chi2_red_chi = 0.0
+
     print(f"  -> Fit FSS picchi chi: Tc = {Tc_from_peaks:.4f} +/- {Tc_from_peaks_err:.4f}")
+    print(f"                         chi^2_red = {chi2_red_chi:.4f}")
     print(f"                         a = {a_fit:.4f} +/- {perr[1]:.4f}")
 
     # Linea verticale alla temperatura critica teorica
@@ -323,7 +418,7 @@ def plot_susceptibility(data):
     print(" Grafico susceptibility.png salvato")
     plt.close()
 
-    return Tc_from_peaks, Tc_from_peaks_err
+    return Tc_from_peaks, Tc_from_peaks_err, chi2_red_chi
 
 # ============================================================================
 # GRAFICO 3: Scaling del picco di suscettività
@@ -365,11 +460,8 @@ def plot_chi_scaling(data):
     dof = len(chi_max) - n_params  # gradi di liberta
     # Stima sigma dai residui
     sigma = np.std(residuals)
-    if sigma > 0 and dof > 0:
-        chi2 = np.sum((residuals / sigma)**2)
-        chi2_red = chi2 / dof
-    else:
-        chi2_red = 0.0
+    chi2_gamma = np.sum((residuals / sigma)**2)
+    chi2_red_gamma = chi2_gamma / dof
 
     # Plot dei dati
     ax.plot(L_values, chi_max, 'o', markersize=10, label='Dati', color='#1f77b4')
@@ -378,7 +470,7 @@ def plot_chi_scaling(data):
     L_fit = np.linspace(L_values[0]*0.9, L_values[-1]*1.1, 100)
     chi_fit = power_law(L_fit, A_fit, exponent)
     ax.plot(L_fit, chi_fit, '--', linewidth=2,
-           label=f'Fit: $\\chi_{{max}} = {A_fit:.2f} \\cdot L^{{{exponent:.3f}}}$ ($\\chi^2_{{red}}={chi2_red:.4f}$)',
+           label=f'Fit: $\\chi_{{max}} = {A_fit:.2f} \\cdot L^{{{exponent:.3f}}}$ ($\\chi^2_{{red}}={chi2_red_gamma:.4f}$)',
            color='#ff7f0e')
 
     # Curva teorica
@@ -400,10 +492,10 @@ def plot_chi_scaling(data):
     print("Grafico chi_scaling.png salvato")
     print(f"  -> gamma/nu = {exponent:.4f} +/- {exponent_err:.4f} (teorico: {GAMMA_NU})")
     print(f"  -> A = {A_fit:.2f} +/- {A_err:.2f}")
-    print(f"  -> chi^2_red = {chi2_red:.4f}")
+    print(f"  -> chi^2_red = {chi2_red_gamma:.4f}")
     plt.close()
 
-    return exponent, T_max, exponent_err, chi2_red
+    return exponent, T_max, exponent_err, chi2_red_gamma
 
 # ============================================================================
 # GRAFICO 4: Finite Size Scaling (Data Collapse)
@@ -660,6 +752,7 @@ def plot_energy_heat(data):
     """
     Grafici di energia e calore specifico in funzione della temperatura.
     Usa FSS per estrarre Tc dai picchi: T_max(L) ≈ Tc + b*L^(-1/ν)
+    Gli errori su T_max(L) sono stimati con bootstrap non parametrico (1000 iterazioni).
     Ritorna Tc dal calore specifico e i dettagli dei picchi per ogni L.
     """
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
@@ -667,6 +760,7 @@ def plot_energy_heat(data):
     L_values = sorted(data.keys())
     C_max_values = []
     T_at_C_max = []
+    T_at_C_max_errors = []
     L_array = []
     heat_peaks_details = {}
 
@@ -698,18 +792,28 @@ def plot_energy_heat(data):
                  '-', label=f'L={L}', color=color,
                  markersize=5, linewidth=1.5, zorder=3)
 
-        # Trova il picco del calore specifico per questo L
+        # Trova il picco del calore specifico con errore bootstrap per questo L
+        T_max, T_max_err = bootstrap_peak_error(
+            data[L]['T'],
+            data[L]['C'],
+            data[L]['err_C'],
+            n_bootstrap=1000,
+            window_size=5
+        )
+
+        # Trova il valore di C_max corrispondente
         idx_max = np.argmax(data[L]['C'])
         C_max = data[L]['C'][idx_max]
-        T_max = data[L]['T'][idx_max]
 
         C_max_values.append(C_max)
         T_at_C_max.append(T_max)
+        T_at_C_max_errors.append(T_max_err)
         L_array.append(L)
 
         # Salva i dettagli per ogni L
         heat_peaks_details[L] = {
             'T_max': float(T_max),
+            'T_max_err': float(T_max_err),
             'C_max': float(C_max)
         }
 
@@ -717,17 +821,47 @@ def plot_energy_heat(data):
     # Con nu = 1 per Ising 2D: T_max(L) = Tc + b/L
     L_array = np.array(L_array)
     T_at_C_max = np.array(T_at_C_max)
+    T_at_C_max_errors = np.array(T_at_C_max_errors)
 
     def fss_shift(L, Tc, b):
         return Tc + b / L
 
-    # Fit con curve_fit
-    popt, pcov = curve_fit(fss_shift, L_array, T_at_C_max, p0=[T_C_EXACT, 0.5])
+    # Fit pesato con gli errori bootstrap
+    # sigma=T_at_C_max_errors fornisce i pesi 1/sigma^2 per il fit
+    # absolute_sigma=True indica che gli errori sono assoluti (non relativi)
+    popt, pcov = curve_fit(
+        fss_shift,
+        L_array,
+        T_at_C_max,
+        p0=[T_C_EXACT, 0.5],
+        sigma=T_at_C_max_errors,
+        absolute_sigma=True
+    )
     Tc_from_heat, b_fit = popt
     perr = np.sqrt(np.diag(pcov))
     Tc_from_heat_err = perr[0]
 
+    # Calcolo del chi^2 ridotto per il fit FSS dei picchi del calore specifico
+    # Usando gli errori bootstrap come sigma_i
+    T_at_C_max_predicted = fss_shift(L_array, Tc_from_heat, b_fit)
+    residuals_C = T_at_C_max - T_at_C_max_predicted
+
+    # Numero di parametri del fit (Tc e b)
+    n_params_C = 2
+
+    # Gradi di liberta: numero di punti - numero di parametri
+    dof_C = len(T_at_C_max) - n_params_C
+
+    # Calcolo del chi^2 ridotto usando gli errori bootstrap
+    # chi^2 = sum((y_obs - y_fit)^2 / sigma_i^2)
+    if dof_C > 0:
+        chi2_C = np.sum((residuals_C / T_at_C_max_errors) ** 2)
+        chi2_red_C = chi2_C / dof_C
+    else:
+        chi2_red_C = 0.0
+
     print(f"  -> Fit FSS picchi C: Tc = {Tc_from_heat:.4f} +/- {Tc_from_heat_err:.4f}")
+    print(f"                       chi^2_red = {chi2_red_C:.4f}")
     print(f"                       b = {b_fit:.4f} +/- {perr[1]:.4f}")
 
     # Aggiungi linea verticale per Tc teorico
@@ -749,7 +883,7 @@ def plot_energy_heat(data):
     print(" Grafico energy_heat.png salvato")
     plt.close()
 
-    return Tc_from_heat, Tc_from_heat_err, heat_peaks_details
+    return Tc_from_heat, Tc_from_heat_err, chi2_red_C, heat_peaks_details
 
 # ============================================================================
 # MAIN
@@ -783,17 +917,17 @@ def main():
     print("Generazione grafici...")
     print("-" * 70)
 
-    # Calcola Tc dal Binder crossing (una sola volta)
+    # Calcola Tc dal Binder crossing
     Tc_binder, Tc_error, T_range_binder, std_devs_binder = calculate_binder_crossing(data)
 
     # Genera i grafici
     plot_magnetization(data)
-    Tc_peaks_chi, Tc_peaks_chi_err = plot_susceptibility(data)
-    exponent, _, exponent_err, chi2_red = plot_chi_scaling(data)
+    Tc_peaks_chi, Tc_peaks_chi_err, chi2_red_chi = plot_susceptibility(data)
+    exponent, _, exponent_err, chi2_red_gamma = plot_chi_scaling(data)
     plot_fss(data)
     plot_binder_dispersion(T_range_binder, std_devs_binder)
     plot_binder(data, Tc_binder, Tc_error)
-    Tc_from_heat, Tc_from_heat_err, heat_peaks_details = plot_energy_heat(data)
+    Tc_from_heat, Tc_from_heat_err, chi2_red_C, heat_peaks_details = plot_energy_heat(data)
     plot_heat_with_errors(data)
 
     print("-" * 70)
@@ -837,8 +971,10 @@ def main():
         'Tc_theory': T_C_EXACT,
         'Tc_peaks': float(Tc_peaks_chi),
         'Tc_peaks_err': float(Tc_peaks_chi_err),
+        'chi2_red_chi': float(chi2_red_chi),
         'Tc_heat': float(Tc_from_heat),
         'Tc_heat_err': float(Tc_from_heat_err),
+        'chi2_red_C': float(chi2_red_C),
         'Tc_binder': float(Tc_binder),
         'Tc_binder_err': float(Tc_error),
         'Tc_binder_error_mK': float(abs(Tc_binder - T_C_EXACT) * 1000),
@@ -847,7 +983,7 @@ def main():
         'gamma_nu_err': float(exponent_err),
         'gamma_nu_theory': float(GAMMA_NU),
         'gamma_nu_error_pct': float(abs(exponent - GAMMA_NU) / GAMMA_NU * 100),
-        'gamma_nu_r2': float(chi2_red),
+        'gamma_nu_chi2': float(chi2_red_gamma),
         'U_star': float(U_star),
         'U_star_err': float(U_star_err),
         'U_star_theory': 1.6,

@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2025.12.30)  7 JAN 2026 23:33
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2025.12.30)  17 JAN 2026 14:30
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -617,17 +617,17 @@ File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 ) [1
 
 {/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}] [2] [3]
-<../plots/thermalization.png, id=209, 710.8959pt x 569.7285pt>
+<../plots/thermalization.png, id=209, 710.4141pt x 569.9694pt>
 File: ../plots/thermalization.png Graphic file (type png)
 <use ../plots/thermalization.png>
 Package pdftex.def Info: ../plots/thermalization.png  used on input line 361.
-(pdftex.def)             Requested size: 245.24199pt x 196.53915pt.
-<../plots/thermalization_zoom.png, id=211, 713.3049pt x 569.7285pt>
+(pdftex.def)             Requested size: 245.24199pt x 196.75272pt.
+<../plots/thermalization_zoom.png, id=211, 713.064pt x 569.9694pt>
 File: ../plots/thermalization_zoom.png Graphic file (type png)
 <use ../plots/thermalization_zoom.png>
 Package pdftex.def Info: ../plots/thermalization_zoom.png  used on input line 3
 62.
-(pdftex.def)             Requested size: 245.24199pt x 195.87846pt.
+(pdftex.def)             Requested size: 245.24199pt x 196.03087pt.
  [4]
 LaTeX Font Info:    Trying to load font information for OMS+cmtt on input line 
 412.
@@ -657,17 +657,17 @@ Underfull \hbox (badness 10000) in paragraph at lines 490--491
 m/n/10 leg-ge
  []
 
-<../plots/magnetization.png, id=253, 569.2467pt x 423.984pt>
+<../plots/magnetization.png, id=253, 568.524pt x 424.2249pt>
 File: ../plots/magnetization.png Graphic file (type png)
 <use ../plots/magnetization.png>
 Package pdftex.def Info: ../plots/magnetization.png  used on input line 510.
-(pdftex.def)             Requested size: 245.24199pt x 182.6589pt.
+(pdftex.def)             Requested size: 245.24199pt x 182.99573pt.
 [6]
-<../plots/susceptibility.png, id=269, 569.7285pt x 424.2249pt>
+<../plots/susceptibility.png, id=269, 568.7649pt x 424.2249pt>
 File: ../plots/susceptibility.png Graphic file (type png)
 <use ../plots/susceptibility.png>
 Package pdftex.def Info: ../plots/susceptibility.png  used on input line 527.
-(pdftex.def)             Requested size: 245.24199pt x 182.60733pt.
+(pdftex.def)             Requested size: 245.24199pt x 182.91805pt.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
@@ -689,43 +689,43 @@ Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 (hyperref)                removing `math shift' on input line 541.
 
-<../plots/chi_scaling.png, id=272, 569.7285pt x 421.8159pt>
+<../plots/chi_scaling.png, id=272, 569.0058pt x 423.0204pt>
 File: ../plots/chi_scaling.png Graphic file (type png)
 <use ../plots/chi_scaling.png>
 Package pdftex.def Info: ../plots/chi_scaling.png  used on input line 545.
-(pdftex.def)             Requested size: 245.24199pt x 181.57039pt.
-<../plots/fss_collapse.png, id=274, 639.5895pt x 421.0932pt>
+(pdftex.def)             Requested size: 245.24199pt x 182.32123pt.
+<../plots/fss_collapse.png, id=274, 641.0349pt x 423.2613pt>
 File: ../plots/fss_collapse.png Graphic file (type png)
 <use ../plots/fss_collapse.png>
 Package pdftex.def Info: ../plots/fss_collapse.png  used on input line 560.
-(pdftex.def)             Requested size: 245.24199pt x 161.46277pt.
+(pdftex.def)             Requested size: 245.24199pt x 161.92598pt.
 [7 <../plots/magnetization.png> <../plots/susceptibility.png> <../plots/chi_sca
 ling.png>]
-<../plots/binder_cumulant.png, id=294, 569.4876pt x 423.0204pt>
+<../plots/binder_cumulant.png, id=294, 568.7649pt x 422.7795pt>
 File: ../plots/binder_cumulant.png Graphic file (type png)
 <use ../plots/binder_cumulant.png>
 Package pdftex.def Info: ../plots/binder_cumulant.png  used on input line 579.
-(pdftex.def)             Requested size: 245.24199pt x 182.16632pt.
-<../plots/energy_heat.png, id=295, 1002.3849pt x 351.714pt>
+(pdftex.def)             Requested size: 245.24199pt x 182.29482pt.
+<../plots/energy_heat.png, id=295, 1002.144pt x 350.2686pt>
 File: ../plots/energy_heat.png Graphic file (type png)
 <use ../plots/energy_heat.png>
 Package pdftex.def Info: ../plots/energy_heat.png  used on input line 590.
-(pdftex.def)             Requested size: 245.24199pt x 86.04993pt.
+(pdftex.def)             Requested size: 245.24199pt x 85.71233pt.
  [8 <../plots/fss_collapse.png> <../plots/binder_cumulant.png> <../plots/energy
 _heat.png>]
-<../plots/heat_with_errors.png, id=310, 713.7867pt x 423.984pt>
+<../plots/heat_with_errors.png, id=310, 568.524pt x 350.2686pt>
 File: ../plots/heat_with_errors.png Graphic file (type png)
 <use ../plots/heat_with_errors.png>
 Package pdftex.def Info: ../plots/heat_with_errors.png  used on input line 630.
 
-(pdftex.def)             Requested size: 245.24199pt x 145.66649pt.
+(pdftex.def)             Requested size: 245.24199pt x 151.09358pt.
  [9 <../plots/heat_with_errors.png>]
-<../plots/binder_dispersion.png, id=324, 569.4876pt x 423.984pt>
+<../plots/binder_dispersion.png, id=324, 568.2831pt x 424.2249pt>
 File: ../plots/binder_dispersion.png Graphic file (type png)
 <use ../plots/binder_dispersion.png>
 Package pdftex.def Info: ../plots/binder_dispersion.png  used on input line 676
 .
-(pdftex.def)             Requested size: 196.19434pt x 146.06113pt.
+(pdftex.def)             Requested size: 196.19434pt x 146.45483pt.
 
 Underfull \hbox (badness 6675) in paragraph at lines 697--698
  []\OT1/cmr/bx/n/10 Algoritmo boo-tstrap im-ple-men-ta-to[] \OT1/cmr/m/n/10 Per
@@ -775,7 +775,7 @@ ic/amsfonts/cm/cmsy9.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsf
 onts/cm/cmti10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/c
 m/cmtt10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/symbols
 /msbm10.pfb>
-Output written on paper.pdf (11 pages, 3334274 bytes).
+Output written on paper.pdf (11 pages, 3170094 bytes).
 PDF statistics:
  490 PDF objects out of 1000 (max. 8388607)
  405 compressed objects within 5 object streams
