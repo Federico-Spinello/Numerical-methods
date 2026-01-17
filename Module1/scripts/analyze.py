@@ -230,15 +230,11 @@ def plot_magnetization(data):
     # Plot per ogni dimensione L
     for i, L in enumerate(L_values):
         color = get_color(i)
-        # Linea principale
+        # plot
         ax.plot(data[L]['T'], data[L]['m'],
                 '-', label=f'L={L}', color=color,
                 markersize=5, linewidth=1.5, zorder=3)
-        # Banda di errore
-        ax.fill_between(data[L]['T'],
-                        data[L]['m'] - data[L]['err_m'],
-                        data[L]['m'] + data[L]['err_m'],
-                        color=color, alpha=0.8, zorder=1)
+
 
     # Linea verticale alla temperatura critica
     ax.axvline(T_C_EXACT, color='red', linestyle='--',
@@ -413,15 +409,15 @@ def plot_chi_scaling(data):
 # GRAFICO 4: Finite Size Scaling (Data Collapse)
 # ============================================================================
 
-def plot_fss(data, Tc=None):
+def plot_fss(data):
     """
     Data collapse usando Finite Size Scaling.
     Se la temperatura critica Tc è corretta, i dati di tutte le dimensioni
     dovrebbero collassare su una curva universale quando plottati come:
         y = χ / L^(γ/ν)  vs  x = L^(1/ν) * (T - Tc)
     """
-    if Tc is None:
-        Tc = T_C_EXACT
+    
+    Tc = T_C_EXACT
 
     fig, ax = plt.subplots(figsize=(9, 6))
 
@@ -472,13 +468,7 @@ def calculate_binder_crossing(data):
     3. Per ogni T, interpola U_L(T) per tutti gli L
     4. Calcola σ(T) = dispersione dei valori U_L tra tutti gli L
     5. Trova T dove σ(T) è minimo -> questo è il crossing point
-    6. Stima l'errore dal range dove σ(T) ≤ 1.05·σ_min
-
-    Perché funziona:
-    - Al crossing, tutte le curve U_L(T) convergono allo stesso valore U*
-    - Quindi la dispersione σ(T) tra i diversi L è minima a T = Tc
-    - Il range ristretto [2.2, 2.3] evita regioni lontane dal crossing
-      dove le curve divergono e aumentano artificialmente la dispersione
+    6. Stima l'errore dal range 
 
     Ritorna:
         float: Stima di Tc dal crossing
@@ -493,53 +483,49 @@ def calculate_binder_crossing(data):
     # STEP 1: Definisce il range di temperatura ristretto per il crossing
     # -------------------------------------------------------------------------
     # Restringe l'analisi a [2.2, 2.3], regione vicina a Tc_teorico = 2.269
-    # Questo esclude regioni lontane dal crossing dove le curve divergono
     T_min_crossing = 2.2
     T_max_crossing = 2.3
 
-    # Determina il range di temperature comune disponibile in tutti i dataset
-    T_min_available = max(data[L]['T'].min() for L in L_values)
-    T_max_available = min(data[L]['T'].max() for L in L_values)
+    # Determina il range di temperature disponibile
+
+    T_min = data[40]['T'].min()
+    T_max = data[40]['T'].max()
 
     # Usa l'intersezione: il range richiesto [2.2, 2.3] intersecato con
     # il range disponibile nei dati
-    T_min = max(T_min_available, T_min_crossing)
-    T_max = min(T_max_available, T_max_crossing)
+    T_min = max(T_min, T_min_crossing)
+    T_max = min(T_max, T_max_crossing)
 
     # -------------------------------------------------------------------------
     # STEP 2: Crea griglia fine di temperature nel range ristretto
     # -------------------------------------------------------------------------
-    # 500 punti -> risoluzione ΔT ≈ 0.0002 nel range [2.2, 2.3]
-    T_range = np.linspace(T_min, T_max, 500)
+    # 50000 punti -> risoluzione ΔT ≈ 0.000002 nel range [2.2, 2.3]
+    T_range = np.linspace(T_min, T_max, 50000)
 
     # -------------------------------------------------------------------------
     # STEP 3: Interpola U_L(T) su griglia comune per tutti gli L
     # -------------------------------------------------------------------------
-    # Per ogni punto T della griglia, interpola linearmente U_L(T) da ciascun
-    # dataset (che ha i suoi punti T misurati). Questo permette di valutare
-    # tutti gli U_L alla stessa temperatura per calcolare la dispersione.
-    U_values_at_T = []
-    for T_point in T_range:
-        U_at_this_T = []
-        for L in L_values:
-            T_data = data[L]['T']
-            U_data = data[L]['binder']
-            # Interpolazione lineare: U_L(T_point)
-            U_interp = np.interp(T_point, T_data, U_data)
-            U_at_this_T.append(U_interp)
-        U_values_at_T.append(U_at_this_T)
+    # Crea matrice: righe = temperature, colonne = dimensioni L
+    n_temps = len(T_range)
+    n_L = len(L_values)
+    U_matrix = np.zeros((n_temps, n_L))
 
-    # Matrice: righe = temperature, colonne = dimensioni L
-    # Shape: (500, numero_di_L)
-    U_values_at_T = np.array(U_values_at_T)
+    # Riempi la matrice colonna per colonna (una colonna per ogni L)
+    for j in range(n_L):
+        L = L_values[j]
+        T_data = data[L]['T']
+        U_data = data[L]['binder']
+        # Interpola tutti i punti T_range per questo L
+        for i in range(n_temps):
+            U_matrix[i, j] = np.interp(T_range[i], T_data, U_data)
 
     # -------------------------------------------------------------------------
-    # STEP 4: Calcola la dispersione σ(T) tra i diversi L
+    # STEP 4: Calcola la dispersione sigma(T) tra i diversi L
     # -------------------------------------------------------------------------
     # Per ogni T, calcola la deviazione standard dei valori U_L
-    # σ(T) = std({U_L1(T), U_L2(T), U_L3(T), ...})
-    # Al crossing tutte le curve convergono -> σ(Tc) è minimo
-    std_devs = np.std(U_values_at_T, axis=1)
+    # sigma(T) = std({U_L1(T), U_L2(T), U_L3(T), ...})
+    # Al crossing tutte le curve convergono -> sigma(Tc) e' minimo
+    std_devs = np.std(U_matrix, axis=1)
 
     # -------------------------------------------------------------------------
     # STEP 5: Trova il minimo della dispersione -> Tc
@@ -559,68 +545,46 @@ def calculate_binder_crossing(data):
     # Questo rappresenta l'incertezza sulla posizione del crossing dovuta
     # alla larghezza finita del minimo e alle fluttuazioni statistiche.
 
+    # Definisco la soglia di accettazione attorno al minimo
     threshold = 1.05 * std_min
-    near_minimum = std_devs <= threshold
 
-    if np.sum(near_minimum) > 1:
-        T_near_min = T_range[near_minimum]
-        # Errore = semi-ampiezza del range
-        T_error = (T_near_min.max() - T_near_min.min()) / 2.0
+    # Lista (temporanea) dei valori di T che soddisfano il criterio
+    T_near_min = []
+
+    # Scorro esplicitamente tutti i punti
+    for i in range(len(std_devs)):
+        current_std = std_devs[i]
+        current_T = T_range[i]
+
+        # Accetto il punto se la deviazione standard
+        # non supera la soglia fissata
+        if current_std <= threshold:
+            T_near_min.append(current_T)
+
+    # Converto in array NumPy dopo aver selezionato i punti
+    T_near_min = np.array(T_near_min)
+
+    # Ora decido come stimare l'errore
+    if len(T_near_min) > 1:
+        # Errore = semi-ampiezza dell'intervallo compatibile col minimo
+        T_max_near = np.max(T_near_min)
+        T_min_near = np.min(T_near_min)
+        T_error = 0.5 * (T_max_near - T_min_near)
     else:
-        # Fallback: se il minimo è molto stretto, usa la risoluzione della griglia
-        T_error = (T_max - T_min) / len(T_range)
+        # Minimo troppo stretto: uso la risoluzione della griglia
+        grid_spacing = (T_max - T_min) / len(T_range)
+        T_error = grid_spacing
 
 
-    return Tc_binder, T_error
+    # Ritorna anche T_range e std_devs per il plot
+    return Tc_binder, T_error, T_range, std_devs
 
 
-def plot_binder_dispersion(data):
+def plot_binder_dispersion(T_range, std_devs):
     """
-    Grafico della dispersione σ(T) del Binder cumulant in [2.2, 2.3].
-
-    Mostra visivamente il metodo del crossing:
-    1. σ(T) = deviazione standard di U_L(T) tra tutti gli L
-    2. Il minimo σ(T_min) indica dove le curve si intersecano -> Tc
-
-    Usa il range [2.2, 2.3] della funzione calculate_binder_crossing
-    per consistenza con il calcolo di Tc.
+    Grafico della dispersione sigma(T) del Binder cumulant.
+    Usa i dati gia calcolati da calculate_binder_crossing.
     """
-    L_values = sorted(data.keys())
-
-    if len(L_values) < 2:
-        return
-
-    # -------------------------------------------------------------------------
-    # Usa il range [2.2, 2.3] per consistenza con calculate_binder_crossing
-    # -------------------------------------------------------------------------
-    T_min_crossing = 2.2
-    T_max_crossing = 2.3
-
-    T_min_available = max(data[L]['T'].min() for L in L_values)
-    T_max_available = min(data[L]['T'].max() for L in L_values)
-
-    T_min = max(T_min_available, T_min_crossing)
-    T_max = min(T_max_available, T_max_crossing)
-
-    # Griglia fine: 1000 punti
-    T_range = np.linspace(T_min, T_max, 1000)
-
-    # Per ogni T nella griglia, interpola U per tutti gli L
-    U_values_at_T = []
-    for T_point in T_range:
-        U_at_this_T = []
-        for L in L_values:
-            T_data = data[L]['T']
-            U_data = data[L]['binder']
-            U_interp = np.interp(T_point, T_data, U_data)
-            U_at_this_T.append(U_interp)
-        U_values_at_T.append(U_at_this_T)
-
-    U_values_at_T = np.array(U_values_at_T)  # Shape: (n_temps, n_L)
-
-    # Calcola dispersione
-    std_devs = np.std(U_values_at_T, axis=1)
-
     # Trova il minimo
     idx_min = np.argmin(std_devs)
     Tc_crossing = T_range[idx_min]
@@ -650,14 +614,12 @@ def plot_binder_dispersion(data):
     print("Grafico binder_dispersion.png salvato")
     plt.close()
 
-def plot_binder(data):
+def plot_binder(data, Tc_binder, Tc_error):
     """
-    Binder cumulant: U = 1 - <m⁴>/(3*<m²>²)
+    Binder cumulant: U = 1 - <m^4>/(3*<m^2>^2)
     Le curve per diversi L si intersecano alla temperatura critica Tc.
-    Questo fornisce un metodo robusto per determinare Tc.
+    Usa Tc_binder e Tc_error gia calcolati da calculate_binder_crossing.
     """
-    # Calcola Tc dal crossing
-    Tc_binder, Tc_error = calculate_binder_crossing(data)
 
     fig, ax = plt.subplots(figsize=(8, 6))
 
@@ -689,11 +651,9 @@ def plot_binder(data):
 
     plt.tight_layout()
     plt.savefig(PLOTS_DIR / 'binder_cumulant.png', dpi=300, bbox_inches='tight')
-    print(" Grafico binder_cumulant.png salvato")
+    print("Grafico binder_cumulant.png salvato")
     print(f"  -> Tc dal crossing Binder: {Tc_binder:.4f} +/- {Tc_error:.4f}")
     plt.close()
-
-    return Tc_binder, Tc_error
 
 # ============================================================================
 # GRAFICO 6: Energia e Calore Specifico
@@ -831,18 +791,18 @@ def main():
     print("Generazione grafici...")
     print("-" * 70)
 
-    # Prima calcola Tc dal Binder (serve per FSS)
-    Tc_binder, Tc_error = calculate_binder_crossing(data)
+    # Calcola Tc dal Binder crossing (una sola volta)
+    Tc_binder, Tc_error, T_range_binder, std_devs_binder = calculate_binder_crossing(data)
 
     # Genera i grafici
     plot_magnetization(data)
-    Tc_peaks_chi, Tc_peaks_chi_err = plot_susceptibility(data)  # Calcola Tc dai picchi di chi con FSS
+    Tc_peaks_chi, Tc_peaks_chi_err = plot_susceptibility(data)
     exponent, _, exponent_err, chi2_red = plot_chi_scaling(data)
-    plot_fss(data, Tc=Tc_binder)  # Usa Tc stimato dal Binder per FSS
-    plot_binder_dispersion(data)  # Mostra la dispersione per giustificare il metodo
-    plot_binder(data)  # Calcola e mostra Tc dal crossing internamente
-    Tc_from_heat, Tc_from_heat_err, heat_peaks_details = plot_energy_heat(data)  # Calcola Tc dai picchi del calore specifico con FSS
-    plot_heat_with_errors(data)  # Grafico calore specifico con barre errore
+    plot_fss(data)
+    plot_binder_dispersion(T_range_binder, std_devs_binder)
+    plot_binder(data, Tc_binder, Tc_error)
+    Tc_from_heat, Tc_from_heat_err, heat_peaks_details = plot_energy_heat(data)
+    plot_heat_with_errors(data)
 
     print("-" * 70)
 
