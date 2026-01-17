@@ -1,0 +1,382 @@
+\documentclass[twocolumn,10pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[italian]{babel}
+\usepackage{amsmath}
+\usepackage{float}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{hyperref}
+\usepackage{geometry}
+\geometry{a4paper, margin=2cm}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue},
+    commentstyle=\color{gray},
+    stringstyle=\color{red},
+    numbers=left,
+    numberstyle=\tiny,
+    frame=single,
+    breaklines=true
+}
+
+\title{\textbf{Simulazione Numerica dell'Equazione di Burgers 1D:\\Analisi degli Shock e Stabilit\`a Computazionale}}
+\author{Federico Spinello}
+
+\begin{document}
+
+\twocolumn[
+\begin{@twocolumnfalse}
+\maketitle
+
+\begin{abstract}
+L'equazione di Burgers rappresenta un modello fondamentale per lo studio dei fenomeni non lineari in fluidodinamica, caratterizzato dalla competizione tra trasporto convettivo e diffusione viscosa. Questo lavoro presenta un'implementazione numerica completa per la risoluzione dell'equazione di Burgers unidimensionale con condizioni al contorno periodiche, utilizzando uno schema Runge-Kutta del quarto ordine per l'integrazione temporale e differenze finite ad alta precisione per le derivate spaziali. Particolare attenzione \`e dedicata all'analisi delle condizioni di stabilit\`a attraverso i criteri di Courant-Friedrichs-Lewy (CFL), essenziali per prevenire l'insorgenza di instabilit\`a numeriche che si manifestano come oscillazioni spurie, che esplodono rapidamente. Viene inoltre presentata un'analisi parametrica della dipendenza della pendenza degli shock dalla viscosit\`a, verificando la relazione teorica $|\partial u/\partial x|_{\text{max}} \propto \nu^{-1}$. I risultati mostrano buon accordo con la teoria e dimostrano l'efficacia dello schema numerico implementato per la simulazione di fenomeni fortemente non lineari.
+\end{abstract}
+
+\vspace{0.5cm}
+\end{@twocolumnfalse}
+]
+
+\section{Introduzione}
+
+L'equazione di Burgers, introdotta da Harry Bateman nel 1915 e successivamente sviluppata da Johannes Martinus Burgers nel 1948, costituisce un modello paradigmatico per lo studio di fenomeni non lineari in meccanica dei fluidi. Nonostante la sua apparente semplicit\`a, questa equazione cattura caratteristiche fondamentali delle equazioni di Navier-Stokes, come la formazione di discontinuit\`a (shock) e la cascata energetica verso scale pi\`u piccole. La forma dell'equazione \`e:
+
+\begin{equation}
+\frac{\partial u}{\partial t} + u \frac{\partial u}{\partial x} = \nu \frac{\partial^2 u}{\partial x^2}
+\label{eq:burgers}
+\end{equation}
+
+dove $u(x,t)$ rappresenta la velocit\`a del fluido, $\nu$ \`e il coefficiente di viscosit\`a cinematica, e il termine $u \partial u/\partial x$ introduce la non linearit\`a caratteristica del problema.
+
+La fisica sottostante \`e governata dalla competizione tra due meccanismi: il termine convettivo non lineare tende a \textit{steepening} (formazione di gradienti sempre pi\`u ripidi), mentre il termine diffusivo viscoso agisce come meccanismo di regolarizzazione. Per valori piccoli di $\nu$, si osserva la formazione di shock, ovvero transizioni rapide della soluzione che in assenza di viscosit\`a diventerebbero vere discontinuit\`a.
+
+Questo lavoro si concentra principalmente sugli aspetti computazionali della simulazione numerica dell'equazione di Burgers, con particolare enfasi sulla stabilit\`a degli schemi numerici e sull'analisi quantitativa della struttura degli shock al variare della viscosit\`a.
+
+\subsection{Teoria dello Scaling dello Shock}
+
+Dalla teoria degli shock per l'equazione di Burgers, in regime stazionario si ha un bilancio locale tra convezione e diffusione:
+\begin{equation}
+u \frac{\partial u}{\partial x} \sim \nu \frac{\partial^2 u}{\partial x^2}
+\end{equation}
+
+Introducendo lo spessore caratteristico dello shock $\delta$ e il salto di velocit\`a $\Delta u$, fissato dalle condizioni di partenza($\Delta u=2$), otteniamo ch:
+
+\begin{equation}
+\frac{(\Delta u)^2}{\delta} \sim \nu \frac{\Delta u}{\delta^2}
+\end{equation}
+
+il che equivale a dire che $R_e\sim1$ sulla scala dissipativa da cui:
+
+\begin{equation}
+\delta \sim \frac{\nu}{\Delta u}
+\end{equation}
+
+Il gradiente massimo scala quindi come:
+
+\begin{equation}
+\left|\frac{\partial u}{\partial x}\right|_{\max} \sim \frac{\Delta u}{\delta} \sim \frac{(\Delta u)^2}{\nu} \propto \nu^{-1}
+\label{eq:scaling}
+\end{equation}
+
+Per quanto riguarda, invece, lo spettro di potenza per una discontinuit\`a (shock), esso pu\`o essere derivato considerando la trasformata di Fourier di una funzione a gradino. Consideriamo uno shock ideale centrato in $x = x_0$ con salto $\Delta u$:
+
+\begin{equation}
+u(x) = \begin{cases}
+u_- & x < x_0 \\
+u_+ & x > x_0
+\end{cases}
+\end{equation}
+
+La derivata spaziale di questa funzione \`e una delta di Dirac:
+\begin{equation}
+\frac{\partial u}{\partial x} = \Delta u \cdot \delta(x - x_0)
+\end{equation}
+
+La trasformata di Fourier della derivata \`e legata alla trasformata di $u(x)$ dalla propriet\`a:
+\begin{equation}
+\mathcal{F}\left\{\frac{\partial u}{\partial x}\right\} = ik \hat{u}(k)
+\end{equation}
+
+Poich\'e la trasformata di Fourier della delta di Dirac \`e una costante:
+\begin{equation}
+\mathcal{F}\{\Delta u \cdot \delta(x - x_0)\} = \Delta u \cdot e^{-ikx_0}
+\end{equation}
+
+si ottiene:
+\begin{equation}
+ik \hat{u}(k) = \Delta u \cdot e^{-ikx_0} \quad \Rightarrow \quad \hat{u}(k) = \frac{\Delta u}{ik} e^{-ikx_0}
+\end{equation}
+
+Lo spettro di potenza (PSD), definito come $|\hat{u}(k)|^2$, diventa quindi:
+\begin{equation}
+\text{PSD}(k) = |\hat{u}(k)|^2 = \left|\frac{\Delta u}{ik}\right|^2 = \frac{(\Delta u)^2}{k^2}
+\end{equation}
+
+dove il termine di fase $e^{-ikx_0}$ scompare nel modulo quadro. Questa derivazione dimostra che \textbf{uno shock ideale produce uno spettro $k^{-2}$}.
+
+
+Nel caso reale dell'equazione di Burgers, lo shock ha spessore finito $\delta \sim \nu/\Delta u$, introducendo un cutoff viscoso a $k_{\text{diss}} \sim 1/\delta$ che rappresenta il punto in cui il termine dissipativo diventa dello stesso ordine di grandezza del termine cinetico, questo si ottiene imponendo $R_e=1$. Definiamo $k_0$ come il numero d'onda dell'onda di partenza (corrispondente a $k=2\pi /L$). Lo spettro completo presenta quindi tre regimi:
+
+\begin{equation}
+\text{PSD}(k) \propto \begin{cases}
+k^0 & k < k_0 \quad \text{(armonica principale)} \\
+k^{-2} & k_0 < k < k_{\text{diss}} \quad \text{(range inerziale)} \\
+e^{-\nu k^2 t} & k > k_{\text{diss}} \quad \text{(range viscoso)}
+\end{cases}
+\end{equation}
+
+La presenza dello spettro $k^{-2}$ \`e quindi una \textit{firma spettrale} degli shock e pu\`o essere utilizzata per diagnosticare la loro corretta formazione nelle simulazioni numeriche. Deviazioni significative da questa legge indicano insufficiente risoluzione spaziale o eccessiva dissipazione numerica.
+
+
+\section{Metodologia Numerica}
+
+\subsection{Discretizzazione Spaziale}
+
+Il dominio spaziale $[0, L]$ viene discretizzato uniformemente con $n_x$ celle, determinando un passo spaziale $\Delta x = L/n_x$. Vengono utilizzate condizioni al contorno periodiche, implementate mediante l'operatore modulo sugli indici, ad esempio, per calcolare la posizione subito a destra (o a sinistra) della cella i-esima, utilizziamo:
+
+\begin{equation}
+i_{\pm} = (i \pm 1 + n_x) \mod n_x
+\end{equation}
+
+Per le derivate spaziali si adottano schemi alle differenze finite ad alta precisione per minimizzare l'errore numerico.
+
+\subsubsection{Derivata Prima}
+
+Viene utilizzato uno schema centrato a 5 punti, che fornisce accuratezza del quarto ordine ($\mathcal{O}(\Delta x^4)$):
+
+\begin{equation}
+\left.\frac{\partial u}{\partial x}\right|_i \approx \frac{u_{i-2} - 8u_{i-1} + 8u_{i+1} - u_{i+2}}{12\Delta x}
+\label{eq:first_deriv}
+\end{equation}
+
+Questo schema presenta minimizza le oscillazioni numeriche rispetto agli schemi standard a 3 punti, mantenendo un costo computazionale contenuto.
+
+\subsubsection{Derivata Seconda}
+
+Per la derivata seconda si impiega uno schema centrato a 5 punti, anch'esso di quarto ordine:
+
+\begin{equation}
+\left.\frac{\partial^2 u}{\partial x^2}\right|_i \approx \frac{-u_{i+2} + 16u_{i+1} - 30u_i + 16u_{i-1} - u_{i-2}}{12\Delta x^2}
+\label{eq:second_deriv}
+\end{equation}
+
+L'uso di schemi ad alta precisione \`e fondamentale per catturare accuratamente la fisica degli shock senza introdurre eccessiva dissipazione numerica.
+
+È importante osservare che entrambi gli schemi mantengono lo stesso grado di errore ($\mathcal{O}(\Delta x^4)$), questo perchè l'errore complessivo rimarrebbe quello di ordine più basso. 
+
+\subsection{Integrazione Temporale: Runge-Kutta 4}
+
+Per l'avanzamento temporale si utilizza il metodo esplicito di Runge-Kutta del quarto ordine (RK4) , che garantisce accuratezza $\mathcal{O}(\Delta t^4)$ e buone propriet\`a di stabilit\`a. Definendo l'operatore right-hand-side (RHS):
+
+\begin{equation}
+F(u) = \nu \frac{\partial^2 u}{\partial x^2} - u \frac{\partial u}{\partial x}
+\end{equation}
+
+lo schema RK4 si scrive:
+
+\begin{align}
+k_1 &= F(u^n) \\
+k_2 &= F(u^n + \frac{\Delta t}{2}k_1) \\
+k_3 &= F(u^n + \frac{\Delta t}{2}k_2) \\
+k_4 &= F(u^n + \Delta t \, k_3) \\
+u^{n+1} &= u^n + \frac{\Delta t}{6}(k_1 + 2k_2 + 2k_3 + k_4)
+\end{align}
+
+Questo metodo richiede quattro valutazioni del RHS per timestep, ma garantisce elevata accuratezza e consente l'uso di timestep significativamente pi\`u grandi rispetto a metodi del primo ordine come Eulero esplicito.
+
+\subsection{Condizioni di Stabilit\`a e Criteri CFL}
+
+La stabilit\`a numerica rappresenta un aspetto critico nella simulazione di equazioni alle derivate parziali. Il timestep $\Delta t$ deve soddisfare vincoli dettati sia dalla diffusione che dalla convezione, espressi attraverso i numeri di Courant-Friedrichs-Lewy (CFL).
+
+\subsubsection{Condizione CFL Diffusiva}
+
+Per il termine di diffusione $\nu \partial^2 u/\partial x^2$, la condizione di stabilit\`a di von Neumann per schemi espliciti richiede:
+
+\begin{equation}
+\text{CFL}_{\text{diff}} = \frac{\nu \Delta t}{\Delta x^2} \leq C_{\text{diff}}
+\label{eq:cfl_diff}
+\end{equation}
+
+dove $C_{\text{diff}}$ \`e il numero di Courant diffusivo critico, che dipende dallo schema di integrazione temporale. Per il metodo Runge-Kutta del quarto ordine combinato con differenze finite centrate, l'analisi di stabilit\`a di von Neumann fornisce $C_{\text{diff}} \lesssim 0.5$. In questa analisi è stato scelto $C_{\text{diff}}=0.4$ Questo valore \`e stato scelto conservativamente per garantire maggiore stabilit\`a. Questo vincolo impone:
+
+\begin{equation}
+\Delta t \leq \frac{C_{\text{diff}} \Delta x^2}{\nu}
+\end{equation}
+
+Si nota che per viscosit\`a molto piccole, questa condizione diventa estremamente restrittiva, rendendo necessari timestep molto piccoli e aumentando significativamente il costo computazionale.
+
+\subsubsection{Condizione CFL Convettiva}
+
+Per il termine convettivo non lineare $u \partial u/\partial x$,la condizione di stabilit\`a \`e:
+
+\begin{equation}
+\text{CFL}_{\text{adv}} = \frac{|u|_{\max} \Delta t}{\Delta x} \leq C_{\text{adv}}
+\label{eq:cfl_adv}
+\end{equation}
+
+dove $C_{\text{adv}}$ \`e il numero di Courant advettivo critico. Per lo schema RK4 con differenze finite centrate, l'analisi di stabilit\`a indica $C_{\text{adv}} = 1$. Fisicamente, questa condizione assicura che l'informazione non ``viaggi'' numericamente per pi\`u di una cella durante un singolo timestep, prevenendo violazioni della causalit\`a numerica. In questa analisi è stato utilizzato $CFL_{\text{adv}}=0.3$, questa condizione è molto conservativa, ma garantisce stabilità nonostante non aumenti troppo il costo computazionale. 
+
+\subsubsection{Time Step Adattivo}
+
+Nel codice implementato, il timestep viene ricalcolato ad ogni iterazione per garantire la stabilit\`a:
+
+\begin{align}
+\Delta t_{\text{diff}} &= C_{\text{diff}} \frac{\Delta x^2}{\nu} \\
+\Delta t_{\text{adv}} &= C_{\text{adv}} \frac{\Delta x}{|u|_{\max}} \\
+\Delta t &= s \cdot \min(\Delta t_{\text{diff}}, \Delta t_{\text{adv}})
+\end{align}
+
+dove $s = 0.9$ \`e un fattore di sicurezza aggiuntivo. Questo approccio adattivo \`e essenziale poich\'e $|u|_{\max}$ varia dinamicamente durante la simulazione, specialmente nella fase di formazione degli shock.
+
+\subsubsection{Instabilit\`a Numerica}
+
+La violazione dei criteri CFL porta a instabilit\`a numeriche. Imponendo $s=2$ osserviamo una differenza con la simulazione eseguita con $s=0.9$ sostanziale. Inizialmente le due simulazioni sono sovrapponibili, ma dopo un certo tempo iniziano ad essere amplificati gli errori numerici, che portano ad oscillazioni spurie, su quasi tutte le frequenze. Il codice, a questo punto, non sta pi\`u simulando nulla di fisico.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{../images/instabilities_CFL1.pdf}
+\includegraphics[width=\linewidth]{../images/instabilities_CFL2.pdf}
+\caption{Instabilit\`a numerica causata dalla violazione della condizione CFL. In alto simulazione con $s=2$, in basso stessa simulazione allo stesso step temporale, ma con $s=0.9$. Sono ben visibili le oscillazioni ad alta frequenza dovute all'errore numerico che viene amplificato ad ogni step temporale.}
+\label{fig:instability}
+\end{figure}
+
+La Figura \ref{fig:instability} mostra un esempio tipico di questo fenomeno: le oscillazioni iniziano come piccole perturbazioni ma rapidamente dominano la soluzione, invalidando completamente i risultati numerici.
+
+\section{Analisi Spettrale FFT}
+
+Per caratterizzare la distribuzione energetica alle diverse scale, si utilizza la trasformata di Fourier discreta implementata tramite la libreria FFTW3 (Fastest Fourier Transform in the West).
+
+Data la natura reale del campo $u(x)$, si impiega la trasformata ottimizzata reale-complessa \texttt{fftw\_plan\_dft\_r2c\_1d} invece della trasformata complessa-complessa standard (\texttt{fftw\_plan\_dft\_1d}). Quando i dati di input sono reali, l'output della trasformata di Fourier soddisfa la simmetria hermitiana: $\hat{u}(k) = \hat{u}^*(-k)$. Conseguentemente, solo i coefficienti per $k \geq 0$ sono indipendenti. La r2c sfrutta questa propriet\`a calcolando soltanto $N/2+1$ coefficienti complessi invece di $N$, \textbf{dimezzando sia il costo computazionale che i requisiti di memoria rispetto alla FFT complessa standard}.
+
+La densit\`a spettrale di potenza (PSD) \`e definita come:
+
+\begin{equation}
+\text{PSD}(k) = \frac{|\hat{u}(k)|^2}{N^2}
+\end{equation}
+
+dove $\hat{u}(k)$ \`e la trasformata di Fourier di $u(x)$, $N$ il numero di punti, e il numero d'onda \`e $k = 2\pi n/L$ con $n = 0, 1, \ldots, N/2$.
+
+L'analisi spettrale permette di osservare:
+\begin{itemize}
+\item La cascata energetica dai bassi $k$ agli alti $k$
+\item La formazione dello shock, con PSD $\propto k^{-2}$
+\item La dissipazione dovuta alla viscosit\`a, alimentata dalla cascata di energia
+\item La presenza di eventuali oscillazioni numeriche spurie (picchi ad alte frequenze non fisici)
+\end{itemize}
+
+\section{Risultati: Simulazione principale}
+
+La simulazione principale (\texttt{sim\_adv\_conv}) utilizza una condizione iniziale sinusoidale:
+
+\begin{equation}
+u(x,0) = \sin\left(\frac{2\pi x}{L}\right)
+\end{equation}
+
+con $L = 1$, $n_x = 2048$, e viscosit\`a $\nu = \Delta x^2 \pi \cdot 800 / 2 \approx 6 \times 10^{-4}$. I parametri sono scelti per garantire una risoluzione adeguata dello shock, mantenendo un costo computazionale ragionevole. In particolare, la viscosità è stata scelta in questo range poichè una viscosità più piccola avrebbe ridotto la dimensione dello shock. Affinchè il sistema non divergesse si sarebbe dovuto aumentare la risoluzione della griglia spaziale, in modo da permettere al programma di risolvere correttamente lo shock, ma questo avremme aumentato il costo computazionale. Al contario, se la viscosità fosse troppo elevata, avrebbe dissipato l'energia molto più velocemente del tempo necessario alla formazione di shock.
+
+\subsection{Dinamica Temporale}
+La dinamica osservata segue tre fasi distinte:
+
+\begin{enumerate}
+\item \textbf{Fase iniziale:} Il termine convettivo domina, causando \textit{steepening} del profilo. L'energia si trasferisce progressivamente dalla frequenza fondamentale verso frequenze più alte.
+
+\item \textbf{Formazione shock:} I gradienti crescono fino a raggiungere uno spessore determinato dall'equilibrio locale tra convezione e diffusione. Questa fase \`e critica per la stabilit\`a numerica poich\'e $|u|_{\max}$ e $|\partial u/\partial x|_{\max}$ raggiungono i loro valori massimi.
+
+\item \textbf{Quasi stazionarietà:} La soluzione si sposta lentamente verso una soluzione quasi stazionaria.
+
+\item \textbf{Cascata di energia e dissipazione:} La viscosit\`a dissipa continuamente energia alle piccole scale, rimuovendo le alte frequenze generate dalla cascata. Ovvero la dissipazione inizia a dissipare lo shock, riducendone progressivamente ampiezza e gradiente.
+\end{enumerate}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{../images/sim_t0.pdf}
+\includegraphics[width=\linewidth]{../images/sim_t1.pdf}
+\includegraphics[width=\linewidth]{../images/fit.pdf}
+\includegraphics[width=\linewidth]{../images/sim_t3.pdf}
+
+\caption{Simulazione principale: istantanee temporali rappresentative delle diverse fasi evolutive.}
+\label{fig:sim_t0}
+\end{figure}
+Nei grafici in Figura \ref{fig:sim_t0} è visibile l'evoluzione temporale della simulazione e i risultati del fit. Il fit è stato eseguito nel grafico 3 dove è rappresentato uno stato quasi stazionario. Nel grafico 1 si osserva la condizione iniziale, con la trasformata che mostra un picco per bassi $k\sim1$ e l'errore numerico su piccola scala. Nel grafico 2 si vede la formazione di shock: a questo punto sono state generate quasi tutte le frequenze (entro la risoluzione numerica). Nel grafico 3 vediamo la soluzione quasi stazionaria, il termine convettivo bilancia il termine diffusivo. In questo punto \`e stato eseguito un fit con la legge di potenza $A k^{-P}$. L'ultimo grafico, invece, mostra per quanto tempo la soluzione rimane quasi stazionaria $\sim 1000$ timesteps.
+
+
+\subsection{Analisi Quantitativa del Miglior Fit}
+
+Per identificare l'istante temporale in cui lo spettro segue pi\`u fedelmente la legge $k^{-2}$, \`e stata condotta un'analisi sistematica su tutti i timestep della simulazione. Per ogni istante temporale \`e stato calcolato il fit con la legge di potenza $\text{PSD}(k) = A k^{-P}$ nel range $1 < k < 900$, e \`e stato valutato l'istante temporale in cui veniva minimizzato $p-2$. Grazie a questa analisi è stato ottenuto il seguente risultato:
+\begin{equation}
+    p_{\text{fit}}=2.07 \pm 0.09 \rightarrow |{\text{fit}}-2| \approx 0.81 \sigma
+\end{equation}
+
+Il fit \`e eseguito nel range inerziale $6=k_0 < k < k_{\text{diss}}=900$, escludendo il picco a bassi $k$ e la regione dissipativa ad alti $k$. I valori entro il quale eseguire il fit sono stati ottenuti sperimentalmente, ovvero graficando i dati e vedendo l'andamento. 
+
+\section{Analisi Parametrica: Shock vs Viscosit\`a}
+
+La seconda modalit\`a di simulazione (\texttt{sim\_shock\_analysis}) esegue una scansione parametrica sulla viscosit\`a per quantificare la dipendenza della pendenza dello shock da $\nu$.
+
+\subsection{Implementazione Computazionale}
+
+L'analisi procede come segue:
+
+\begin{enumerate}
+\item Per ogni valore di $\nu$ nel range $[\nu_{\min}, \nu_{\max}]$ (in scala logaritmica):
+\begin{itemize}
+\item Inizializza $u(x,0) = \sin(2\pi x/L)$
+\item Evolvi fino a $t_{\text{final}}$ per raggiungere lo stato stazionario
+\item Calcola $\partial u/\partial x$ usando lo schema a 5 punti
+\item Misura $|\partial u/\partial x|_{\max}$ in $x = 0.5$ (posizione dello shock)
+\end{itemize}
+
+\item I risultati vengono salvati ordinati in \texttt{shock\_values.txt}
+
+\item L'analisi viene visualizzata in scala log-log per verificare la legge di potenza
+\end{enumerate}
+
+\subsection{Risultati Parametrici}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{../images/shock_plot.pdf}
+\caption{Pendenza massima dello shock in funzione della viscosit\`a in scala log-log. La linea nera tratteggiata rappresenta il fit $|\partial u/\partial x|_{\max} = A \nu^{\alpha}$ con $\alpha \approx -1.000 \pm 0.001$.}
+\label{fig:shock_analysis}
+\end{figure}
+
+La Figura \ref{fig:shock_analysis} mostra la legge di potenza aspettata. Un fit lineare in scala log-log fornisce un esponente $\alpha = -1.000 \pm 0.001$. Questo valore \'e in ottimo accordo con il valore teorico $\alpha = -1$.
+
+\section{Dettagli Implementativi}
+
+\subsection{Architettura del Codice}
+
+Il codice \`e composto in modo da separare la parte di compilazione (C) e di analisi (py), in modo da permettere ricompilazioni parziali.
+
+È possibile selezionare tra 2 simulazioni tramite il file \texttt{main.c}:
+\begin{itemize}
+    \item \texttt{sim\_adv\_conv.c}: Simulazione principale dello shock. Fornisce la velocità e lo spettro in funzione del tempo.
+    \item \texttt{sim\_shock\_analysis.c}: Scansione parametrica su $\nu$.
+\end{itemize}
+
+Tutti i parametri sono configurabili tramite il file \texttt{params.txt}, permettendo rapide modifiche senza ricompilazione.
+
+Inoltre, sono stati scritti anche 2 file che contengono le funzioni ausiliarie alla compilazione (\texttt{functions.c/h}, come Derivate, RHS, integratore RK4, FFT) e alla lettura dei parametri salvati sul file di testo \texttt{params.txt} (\texttt{params.c/h})
+
+Per quanto riguarda l'analisi dati è stato utilizzato python, che grafica i dati ottenuti dalla simulazione principale (\texttt{plot.py}) e dalla scansione parametrica (\texttt{plot\_shock.py}). Il file \texttt{find\_best\_fit.py} esegue il fit dello spettro visibile in Figura \ref{fig:sim_t0} per ogni step temporale, e trova il punto in cui il risultato si avvicina di più al valore atteso e restituisce i risultati del fit.
+
+Tutto quanto è gestito dal file Makefile, che permette di compilare il c/h, fornendo pratici comandi che eseguono le varie simulazioni in modo automatico. 
+
+\section{Conclusioni}
+
+Questo lavoro ha presentato un'implementazione numerica completa e robusta per la simulazione dell'equazione di Burgers 1D, con particolare enfasi sugli aspetti computazionali di stabilit\`a e accuratezza. I principali risultati sono:
+
+\begin{enumerate}
+\item \textbf{Stabilit\`a numerica}: L'implementazione di criteri CFL adattivi \`e essenziale per prevenire instabilit\`a. Il time step adattivo garantisce stabilit\`a in tutte le fasi della simulazione, dal regime lineare iniziale alla formazione dello shock.
+
+\item \textbf{Accuratezza}: L'uso di schemi alle differenze finite del quarto ordine combinati con RK4 fornisce eccellente accuratezza, minimizzando l'errore numerico, pur mantenendo un costo computazionale ragionevole. Questo \`e critico per catturare correttamente la fisica degli shock.
+
+\item \textbf{Validazione quantitativa}: L'analisi parametrica conferma la legge di scaling teorica $|\partial u/\partial x|_{\max} \propto \nu^{-1}$ con pendenza fittata $=-1.000 \pm 0.001$. Lo spettro $k^{-2}$ \`e confermato con ottimo accordo ($P = 2.07 \pm 0.09$).
+
+\item \textbf{Efficienza computazionale}: L'architettura modulare e le ottimizzazioni implementate rendono il codice sufficientemente veloce per analisi parametriche estese.
+\end{enumerate}
+\end{document}

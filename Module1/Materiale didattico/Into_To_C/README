@@ -1,0 +1,70 @@
+*************************************************************
+
+Introduction to C: some basic code to get acquainted with C
+
+*************************************************************
+
+arrays: basic arrays
+
+hello_world: just what the name says...
+
+command_line1: to introduce some command line functionalities
+
+command_line2: a more complex example, with also file writing
+
+dynamic_memory: dynamical allocation of memory
+
+flow_control: for if while and all that
+
+functions: some basic facts about functions and pointers
+
+integrator: basic integration algorithms
+
+integrator2: basic integration algorithms using int_lib.c and int_lib.h
+
+rng: random number generator
+
+struct: basic structures
+
+types: basic types
+
+types_complex: an explicit example with complex numbers
+
+write_read: to read and write formatted files
+
+*******
+
+To be studied in the following order
+
+hello_world
+
+types
+types_complex
+flow_control
+
+functions
+arrays
+write_read
+
+dynamic_memory
+struct
+command_line1
+command_line2
+
+integrator
+integrator2
+rng
+
+*********
+
+To compile the integrator2.c file, which depends on the library file int_lib.c
+and on the header file int_lib.h, you have to use something like
+
+gcc -c int_lib.c 
+gcc -c integrator2.c 
+gcc integrator2.o int_lib.o -o exe -lm
+
+The first two commands produce the object files int_lib.o and integrator2.o,
+respectively. The third lines link the object files and produces the executable
+file exe.
+

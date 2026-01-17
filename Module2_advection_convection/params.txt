@@ -1,0 +1,30 @@
+# ============================================
+# PARAMETRI SIMULAZIONE EQUAZIONE DI BURGERS
+# ============================================
+# CORREZIONI APPLICATE:
+# 1. Griglia raffinata: nx = 2048 (risoluzione ottimale per FFT e shock)
+# 2. Viscosità aumentata: nu_factor = 800 per stabilizzare shock
+# 3. CFL ridotto: per garantire stabilità con schemi high-order
+# 4. Timesteps aumentati: per raggiungere steady-state
+
+[GLOBAL]
+# Parametri comuni a tutte le simulazioni
+nx = 2048                    # Numero di celle spaziali (2^11, ottimo per FFT)
+L = 1.0                      # Lunghezza dominio
+CFL_diff = 0.25              # CFL per diffusione (ridotto per stabilità)
+CFL_adv = 0.2                # CFL per avvezione (ridotto per stabilità)
+safety = 0.8                 # Safety factor per timestep
+
+[ADVECTION_CONVECTION]
+# Parametri per simulazione standard (sim_adv_conv)
+nt = 12000                   # Numero di timesteps (aumentato per convergenza)
+print_step = 20              # Frequenza salvataggio dati
+nu_factor = 800.0            # Fattore per calcolo viscosità: nu = dx^2 * pi * nu_factor / 2
+                             # Con nx=2048: nu ≈ 0.0006 (sufficiente per stabilizzare)
+
+[SHOCK_ANALYSIS]
+# Parametri per analisi shock vs viscosità
+nt = 6000                    # Numero di timesteps per ogni simulazione
+nu_min_factor = 1000.0        # Fattore per nu_min: nu_min = dx^2 * pi * nu_min_factor / 2
+nu_max_factor = 3000.0       # Fattore per nu_max: nu_max = dx^2 * pi * nu_max_factor / 2
+n_nu = 80                    # Numero di valori di viscosità da testare

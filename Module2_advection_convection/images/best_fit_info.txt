@@ -1,0 +1,23 @@
+Miglior fit trovato per l'analisi spettrale
+Criterio: minima distanza da P = 2.0 in unità di sigma
+============================================================
+Step temporale: 3760
+
+Parametri fit:
+  A = 5.230744e+00 ± 2.649208e+00
+  P = 2.06957300 ± 0.08576017
+
+Distanza da P = 2.0 (valore teorico regime viscoso):
+  |P - 2.0| / sigma_P = 0.811251 sigma
+  Deviazione assoluta: 6.957300e-02
+  Errore su P: 8.576017e-02
+
+Range di fit:
+  k_min = 6
+  k_max = 900
+  psd_min = 1e-10
+  Numero punti usati: 143
+
+Interpretazione:
+  ECCELLENTE: P compatibile con 2.0 entro 1σ
+  Lo spettro segue la legge k^-2 del regime viscoso

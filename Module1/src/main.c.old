@@ -1,0 +1,347 @@
+/*
+ * main.c - Orchestratore simulazioni Ising 2D
+ *
+ * Legge parametri da params.txt ed esegue batch di simulazioni
+ * Monte Carlo per diverse dimensioni L e temperature T.
+ *
+ * Workflow:
+ *   1. Parsing params.txt
+ *   2. Costruzione griglia (L × T)
+ *   3. Esecuzione simulazioni parallele (loop su L e T)
+ *   4. Progress bar e stima tempo rimanente
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
+#include "../include/ising_wolff.h"
+
+#define MAX_LINE_LENGTH 256
+#define MAX_L_VALUES 20
+#define MAX_TEMP_VALUES 500
+
+typedef struct {
+    int L_values[MAX_L_VALUES];
+    int n_L;
+    double T_min;
+    double T_max;
+    int n_temps;
+    long int thermalization;
+    long int measurements;
+    char data_dir[256];
+} GlobalParams;
+
+/*
+ * Legge parametro da stringa "KEY = value"
+ * Ritorna 1 se trovato, 0 altrimenti
+ */
+int parse_param_line(const char *line, const char *key, char *value) {
+    char line_copy[MAX_LINE_LENGTH];
+    char *token, *equals;
+
+    // Salta commenti e linee vuote
+    if (line[0] == '#' || line[0] == '\n' || line[0] == '\0') {
+        return 0;
+    }
+
+    strncpy(line_copy, line, MAX_LINE_LENGTH - 1);
+    line_copy[MAX_LINE_LENGTH - 1] = '\0';
+
+    // Cerca '='
+    equals = strchr(line_copy, '=');
+    if (equals == NULL) {
+        return 0;
+    }
+
+    // Separa chiave e valore
+    *equals = '\0';
+    token = line_copy;
+
+    // Rimuovi spazi dalla chiave
+    while (*token == ' ' || *token == '\t') token++;
+    char *key_end = equals - 1;
+    while (key_end > token && (*key_end == ' ' || *key_end == '\t')) {
+        *key_end = '\0';
+        key_end--;
+    }
+
+    // Confronta chiave
+    if (strcmp(token, key) != 0) {
+        return 0;
+    }
+
+    // Estrai valore
+    char *val_start = equals + 1;
+    while (*val_start == ' ' || *val_start == '\t') val_start++;
+
+    // Rimuovi newline finale
+    char *newline = strchr(val_start, '\n');
+    if (newline) *newline = '\0';
+
+    // Rimuovi spazi finali
+    char *val_end = val_start + strlen(val_start) - 1;
+    while (val_end > val_start && (*val_end == ' ' || *val_end == '\t')) {
+        *val_end = '\0';
+        val_end--;
+    }
+
+    strcpy(value, val_start);
+    return 1;
+}
+
+/*
+ * Carica parametri da params.txt
+ */
+int load_params(const char *filename, GlobalParams *params) {
+    FILE *fp;
+    char line[MAX_LINE_LENGTH];
+    char value[MAX_LINE_LENGTH];
+
+    fp = fopen(filename, "r");
+
+    // Inizializza
+    params->n_L = 0;
+    params->T_min = 2.0;
+    params->T_max = 2.5;
+    params->n_temps = 50;
+    params->thermalization = 10000;
+    params->measurements = 100000;
+    strcpy(params->data_dir, "data");
+
+    if (fp == NULL) {
+        fprintf(stderr, "ERRORE: Impossibile aprire %s\n", filename);
+        fprintf(stderr, "Uso parametri di default.\n");
+        return 0;
+    }
+
+
+
+    // Leggi file riga per riga
+    while (fgets(line, MAX_LINE_LENGTH, fp) != NULL) {
+        if (parse_param_line(line, "L_VALUES", value)) {
+            // Parse CSV: "20,40,60,80"
+            char *token = strtok(value, ",");
+            while (token != NULL && params->n_L < MAX_L_VALUES) {
+                params->L_values[params->n_L++] = atoi(token);
+                token = strtok(NULL, ",");
+            }
+        }
+        else if (parse_param_line(line, "T_MIN", value)) {
+            params->T_min = atof(value);
+        }
+        else if (parse_param_line(line, "T_MAX", value)) {
+            params->T_max = atof(value);
+        }
+        else if (parse_param_line(line, "N_TEMPS", value)) {
+            params->n_temps = atoi(value);
+        }
+        else if (parse_param_line(line, "THERMALIZATION", value)) {
+            params->thermalization = atol(value);
+        }
+        else if (parse_param_line(line, "MEASUREMENTS", value)) {
+            params->measurements = atol(value);
+        }
+        else if (parse_param_line(line, "DATA_DIR", value)) {
+            strncpy(params->data_dir, value, 255);
+            params->data_dir[255] = '\0';
+        }
+    }
+
+    fclose(fp);
+    return 1;
+}
+
+/*
+ * Crea directory se non esiste
+ */
+void create_directory(const char *path) {
+    struct stat st = {0};
+    if (stat(path, &st) == -1) {
+        mkdir(path, 0755);
+    }
+}
+
+/*
+ * Stampa progress bar
+ */
+void print_progress(int current, int total, double elapsed_sec, int L, double T) {
+    int percent = (current * 100) / total;
+    int bar_width = 40;
+    int filled = (bar_width * current) / total;
+
+    printf("\r[");
+    for (int i = 0; i < bar_width; i++) {
+        if (i < filled) printf("=");
+        else if (i == filled) printf(">");
+        else printf(" ");
+    }
+    printf("] %3d%% [%d/%d] L=%d T=%.4f", percent, current, total, L, T);
+
+    if (current > 0) {
+        double avg_time = elapsed_sec / current;
+        double remaining = avg_time * (total - current);
+        int remaining_min = (int)(remaining / 60.0);
+        printf(" (~%dm remaining)", remaining_min);
+    }
+
+    fflush(stdout);
+}
+
+/*
+ * Main
+ */
+int main(int argc, char **argv) {
+    GlobalParams global;
+    SimulationParams sim_params;
+    SimulationResults results;
+
+    double *T_grid;
+    double delta_T;
+
+    int total_sims, current_sim;
+    time_t start_time, current_time;
+    double elapsed_sec;
+
+    printf("================================================================\n");
+    printf("  ISING 2D - Simulazioni Monte Carlo con Algoritmo di Wolff\n");
+    printf("================================================================\n\n");
+
+    // Carica parametri
+    printf("Caricamento parametri da params.txt...\n");
+    if (!load_params("params.txt", &global)) {
+        printf("Usando parametri di default.\n");
+    }
+    printf("✓ Parametri caricati\n\n");
+
+    // Verifica parametri
+    if (global.n_L == 0) {
+        fprintf(stderr, "ERRORE: Nessun valore di L specificato!\n");
+        return EXIT_FAILURE;
+    }
+
+    // Permetti T_MIN == T_MAX se N_TEMPS = 1 (singola temperatura)
+    if (global.n_temps == 1) {
+        if (global.T_min != global.T_max) {
+            fprintf(stderr, "AVVISO: N_TEMPS=1 ma T_MIN != T_MAX, uso T_MIN\n");
+            global.T_max = global.T_min;
+        }
+    } else {
+        if (global.T_min >= global.T_max) {
+            fprintf(stderr, "ERRORE: T_MIN deve essere < T_MAX quando N_TEMPS > 1\n");
+            return EXIT_FAILURE;
+        }
+    }
+
+    if (global.n_temps <= 0) {
+        fprintf(stderr, "ERRORE: N_TEMPS deve essere > 0\n");
+        return EXIT_FAILURE;
+    }
+
+    // Crea directory dati
+    create_directory(global.data_dir);
+
+    // Costruisci griglia temperature
+    T_grid = (double *)malloc(global.n_temps * sizeof(double));
+    if (T_grid == NULL) {
+        fprintf(stderr, "ERRORE: Allocazione memoria T_grid fallita\n");
+        return EXIT_FAILURE;
+    }
+
+    // Caso speciale: singola temperatura (N_TEMPS = 1)
+    if (global.n_temps == 1) {
+        T_grid[0] = global.T_min;
+    } else {
+        delta_T = (global.T_max - global.T_min) / (double)(global.n_temps - 1);
+        for (int i = 0; i < global.n_temps; i++) {
+            T_grid[i] = global.T_min + i * delta_T;
+        }
+    }
+
+    // Stampa informazioni
+    printf("Parametri simulazione:\n");
+    printf("  Dimensioni L: ");
+    for (int i = 0; i < global.n_L; i++) {
+        printf("%d%s", global.L_values[i], (i < global.n_L - 1) ? ", " : "\n");
+    }
+    printf("  Temperature: %.3f -> %.3f (%d punti, step ~%.4f)\n",
+           global.T_min, global.T_max, global.n_temps, delta_T);
+    printf("  Termalizzazione: %ld cluster updates\n", global.thermalization);
+    printf("  Misurazioni: %ld cluster updates\n", global.measurements);
+    printf("  Directory output: %s/\n", global.data_dir);
+    printf("================================================================\n\n");
+
+    // Stima tempo
+    total_sims = global.n_L * global.n_temps;
+    printf("Numero totale simulazioni: %d\n", total_sims);
+    printf("\n");
+
+    // Inizia simulazioni
+    printf("================================================================\n");
+    printf("  ESECUZIONE SIMULAZIONI\n");
+    printf("================================================================\n\n");
+
+    current_sim = 0;
+    start_time = time(NULL);
+
+    // Loop su tutti gli L
+    for (int l_idx = 0; l_idx < global.n_L; l_idx++) {
+        int L = global.L_values[l_idx];
+
+        printf("\n=== L = %d ===\n", L);
+
+        // Loop su tutte le temperature
+        for (int t_idx = 0; t_idx < global.n_temps; t_idx++) {
+            double T = T_grid[t_idx];
+
+            // Prepara parametri simulazione
+            sim_params.L = L;
+            sim_params.T = T;
+            sim_params.thermalization = global.thermalization;
+            sim_params.measurements = global.measurements;
+            sprintf(sim_params.output_file, "%s/L%d_T%.4f.dat",
+                    global.data_dir, L, T);
+
+            // Progress bar
+            current_sim++;
+            current_time = time(NULL);
+            elapsed_sec = difftime(current_time, start_time);
+            print_progress(current_sim, total_sims, elapsed_sec, L, T);
+
+            // Esegui simulazione
+            if (run_ising_simulation(&sim_params, &results) != 0) {
+                fprintf(stderr, "\nERRORE durante simulazione L=%d T=%.4f\n", L, T);
+                free(T_grid);
+                return EXIT_FAILURE;
+            }
+        }
+
+        printf("\n");
+    }
+
+    // Completamento
+    time_t end_time = time(NULL);
+    double total_sec = difftime(end_time, start_time);
+    int total_min = (int)(total_sec / 60.0);
+    int total_sec_rem = (int)total_sec % 60;
+
+    printf("\n");
+    printf("================================================================\n");
+    printf("✓ SIMULAZIONI COMPLETATE\n");
+    printf("================================================================\n");
+    printf("Tempo totale: %dm %ds\n", total_min, total_sec_rem);
+    printf("Dati salvati in: %s/\n", global.data_dir);
+    printf("================================================================\n\n");
+
+    printf("Prossimi passi:\n");
+    printf("  1. make analyze    → Genera grafici e analisi\n");
+    printf("  2. Controlla plots/ per i risultati\n\n");
+
+    // Libera memoria
+    free(T_grid);
+
+    return EXIT_SUCCESS;
+}

@@ -1,0 +1,736 @@
+\documentclass[10pt]{article}
+
+% Pacchetti
+\usepackage[utf8]{inputenc}
+\usepackage[italian]{babel}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{physics}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage[margin=2cm]{geometry}
+\usepackage{multicol}
+
+% Definizioni custom
+\newcommand{\ising}{\text{Ising}}
+\newcommand{\mc}{\text{MC}}
+\DeclareMathOperator{\prob}{P}
+
+% Info documento
+\title{\Large\textbf{Studio Numerico della Transizione di Fase del Modello di Ising 2D mediante Algoritmo di Wolff}}
+
+\author{Federico Spinello}
+
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+% Abstract a colonna singola
+\begin{abstract}
+\noindent
+In questo lavoro vengono studiate numericamente la transizione di fase ferromagnetica del modello di Ising bidimensionale su reticolo quadrato mediante simulazioni Monte Carlo. Viene utilizzato l'algoritmo di Wolff per superare il fenomeno del rallentamento critico che affligge gli algoritmi locali come Metropolis. Attraverso l'analisi di Finite Size Scaling per reticoli di dimensioni $L = 40, 60, 80, 100, 120, 140, 160, 180, 200$ e temperature nel range $T \in [2.1, 2.4]$ (100 punti), determiniamo la temperatura critica tramite il crossing del Binder cumulant e l'analisi FSS dei picchi della suscettività e del calore specifico, ottenendo, rispettivamente: $T_c^B = 2.2690 \pm 0.0001$; $T_c^{\chi} = 2.267 \pm 0.001$ ($\chi^2_{\text{red}} = 0.037$) e $T_c^C = 2.265 \pm 0.004$ ($\chi^2_{\text{red}} = 0.16$); l'esponente critico tramite scaling della suscettività $\gamma/\nu = 1.750 \pm 0.005$ ($\chi^2_{\text{red}} = 0.86$), in buon accordo con i valori esatti noti dalla soluzione di Onsager ($T_c = 2.2692$ e $\gamma/\nu = 1.75$). Gli errori sui picchi sono stati stimati mediante metodo bootstrap non parametrico. Il data collapse conferma ulteriormente la validità della teoria FSS. I risultati dimostrano l'efficacia dell'algoritmo di Wolff e l'accuratezza dei metodi Monte Carlo per lo studio delle transizioni di fase.
+\end{abstract}
+
+% Inizio doppia colonna
+\begin{multicols}{2}
+
+\section{Introduzione}
+
+Il modello di Ising rappresenta uno dei paradigmi fondamentali della meccanica statistica. Nonostante la sua semplicità—variabili di spin discrete su reticolo con interazioni tra primi vicini—cattura la fisica delle transizioni di fase di secondo ordine.
+
+Nel 1944, Lars Onsager ottenne la soluzione esatta del modello di Ising bidimensionale, determinando la temperatura critica
+\begin{equation}
+    T_c = \frac{2J}{k_B \ln(1 + \sqrt{2})} \simeq 2.2692
+\end{equation}
+
+Un problema notevole è il \emph{rallentamento critico}: vicino a $T_c$, algoritmi locali come Metropolis diventano inefficienti. L'algoritmo di Wolff (1989) risolve questo problema usando aggiornamenti dei cluster.
+
+\subsection{Obiettivi}
+
+Questo lavoro si propone di:
+\begin{enumerate}
+    \item Determinare $T_c$ tramite picchi di suscettività, calore specifico, e il crossing del Binder cumulant
+    \item Stimare l'esponente critico $\gamma/\nu$
+    \item Validare l'effetto della taglia finita (Finite Size Scaling, o FSS per brevità) attraverso il collasso dei dati
+\end{enumerate}
+
+\section{Il Modello di Ising 2D}
+
+\subsection{Definizione}
+
+Il modello è definito su un reticolo quadrato $\Lambda$ di dimensione $L \times L$ con $N = L^2$ siti. A ciascun sito $i \in \Lambda$ è associata una variabile di spin:
+\begin{equation}
+    s_i \in \{-1, +1\}
+\end{equation}
+
+L'Hamiltoniana ferromagnetica è:
+\begin{equation}
+    \mathcal{H} = -J \sum_{\langle i,j \rangle} s_i s_j
+\end{equation}
+dove $J > 0$ (poniamo $J=1$) e $\langle i,j \rangle$ indica coppie di primi vicini. Usiamo condizioni periodiche al contorno (PBC).
+
+\subsection{Transizione di Fase}
+
+Il sistema presenta una transizione di fase di secondo ordine alla temperatura critica $T_c$:
+
+\begin{itemize}
+    \item \textbf{Fase ferromagnetica} ($T < T_c$): Magnetizzazione spontanea $m \neq 0$, ordine a lungo range.
+    \item \textbf{Fase paramagnetica} ($T > T_c$): Magnetizzazione $m = 0$, spin scorrelati.
+\end{itemize}
+
+A $T_c$ emerge un comportamento critico caratterizzato dalla divergenza della \emph{lunghezza di correlazione} $\xi(T)$. La lunghezza di correlazione è la distanza caratteristica oltre la quale gli spin perdono memoria dell'orientazione reciproca. Più precisamente, la funzione di correlazione spin-spin decade esponenzialmente:
+\begin{equation}
+    \langle s_i s_j \rangle \sim e^{-|r_i - r_j|/\xi(T)}
+\end{equation}
+dove $|r_i - r_j|$ è la distanza tra i siti $i$ e $j$.
+
+Vicino alla temperatura critica, $\xi$ diverge secondo la legge di potenza:
+\begin{equation}
+    \xi(T) \sim |T - T_c|^{-\nu}
+\end{equation}
+con $\nu = 1$ per Ising 2D. Nella fase ferromagnetica ($T < T_c$), $\xi$ rappresenta la dimensione tipica dei domini ordinati; nella fase paramagnetica ($T > T_c$), misura la distanza su cui gli spin rimangono correlati prima di disordinarsi. Esattamente a $T_c$, $\xi = \infty$: il sistema presenta correlazioni a lungo raggio e strutture a tutte le scale (invarianza di scala).
+
+\subsection{Esponenti Critici}
+
+Il comportamento vicino a $T_c$ è governato da:
+\begin{align}
+    m(T) &\sim (T_c - T)^\beta, && \beta = 1/8 \\
+    \chi(T) &\sim |T - T_c|^{-\gamma}, && \gamma = 7/4 = 1.75 \\
+    \xi(T) &\sim |T - T_c|^{-\nu}, && \nu = 1 \\
+    C(T) &\sim -\ln|T - T_c|, && \alpha = 0
+\end{align}
+
+Questi valori sono esatti (Onsager) e universali: dipendono solo da dimensionalità ($d=2$), simmetria ($\mathbb{Z}_2$) e range delle interazioni.
+
+\subsection{Finite Size Scaling}
+
+Su un reticolo finito, $\xi$ non può superare $L$. La teoria di Finite Size Scaling (FSS) descrive come le osservabili termodinamiche si comportano in sistemi di dimensione finita vicino alla transizione di fase.
+
+Consideriamo un'osservabile generica $O(T,L)$ che dipende sia dalla temperatura $T$ che dalla dimensione del sistema $L$ (ad esempio, magnetizzazione, suscettività, energia, etc.). La teoria FSS prevede che questa osservabile possa essere fattorizzata come:
+\begin{equation}
+    O(T,L) = L^{\lambda/\nu} \tilde{O}\left(L^{1/\nu}(T - T_c)\right)
+\end{equation}
+dove:
+\begin{itemize}
+    \item $O(T,L)$ è il valore misurato dell'osservabile su un reticolo finito $L \times L$
+    \item $L^{\lambda/\nu}$ è un fattore di scala che dipende dall'esponente critico $\lambda$ dell'osservabile e dall'esponente $\nu$ della lunghezza di correlazione
+    \item $\tilde{O}(x)$ è una \emph{funzione di scaling universale}, indipendente da $L$ e $T$ separatamente, che dipende solo dalla combinazione adimensionale $x = L^{1/\nu}(T - T_c)$
+\end{itemize}
+
+La potenza di questa relazione è che tutte le curve $O(T,L)$ per diversi valori di $L$, se riscalate opportunamente, collassano su un'unica curva universale $\tilde{O}(x)$. Questo è il fenomeno del \emph{data collapse}.
+
+Per la suscettività ($\lambda = \gamma$):
+\begin{equation}
+    \chi(T, L) = L^{\gamma/\nu} \tilde{\chi}\left(L^{1/\nu}(T - T_c)\right)
+\end{equation}
+
+Conseguenze:
+\begin{itemize}
+    \item Picco a $T_{\max}(L) \approx T_c + \text{const} \cdot L^{-1/\nu}$
+    \item Altezza: $\chi_{\max}(L) \sim L^{\gamma/\nu}$
+    \item Data collapse: rappresentando $\chi/L^{\gamma/\nu}$ su $L^{1/\nu}(T-T_c)$, tutte le curve collassano nella stessa
+\end{itemize}
+
+\subsection{Binder Cumulant}
+
+Il Binder cumulant è definito come:
+\begin{equation}
+    U_L = \frac{\langle m^4 \rangle}{\langle m^2 \rangle^2}
+\end{equation}
+
+Proprietà:
+\begin{itemize}
+    \item $T \ll T_c$: $U_L \to 1$ (fase ordinata)
+    \item $T \gg T_c$: $U_L \to 3$ (fase disordinata, fluttuazioni gaussiane)
+    \item $T = T_c$: $U_L = U^* \approx 1.17$ (universale per Ising 2D)
+\end{itemize}
+
+Le curve $U_L(T)$ per diversi $L$ si intersecano a $T_c$ (\emph{crossing point}).
+
+\section{Metodi Monte Carlo}
+
+\subsection{Il Problema Computazionale}
+
+In meccanica statistica, il valore medio di un'osservabile nell'ensemble canonico richiede:
+\begin{equation}
+    \langle O \rangle = \frac{1}{Z} \sum_{\{s\}} O(\{s\}) e^{-\beta \mathcal{H}(\{s\})}
+\end{equation}
+dove $Z = \sum_{\{s\}} e^{-\beta \mathcal{H}}$ è la funzione di partizione.
+
+Per $N = L^2$ spin, esistono $2^N$ configurazioni possibili. Esempi numerici:
+\begin{itemize}
+    \item $L = 10$: $2^{100} \approx 10^{30}$ configurazioni
+    \item $L = 20$: $2^{400} \approx 10^{120}$ configurazioni (più atomi nell'universo!)
+    \item $L = 100$: $2^{10000} \approx 10^{3010}$ configurazioni 
+\end{itemize}
+
+Il calcolo esatto è \textbf{impossibile} per sistemi realistici.
+
+\subsection{Importance Sampling}
+
+La soluzione Monte Carlo: invece di sommare su tutte le configurazioni, si campionano solo quelle importanti secondo la distribuzione di Boltzmann:
+\begin{equation}
+    P(\{s\}) = \frac{1}{Z} e^{-\beta \mathcal{H}(\{s\})}
+\end{equation}
+
+Con $M$ configurazioni campionate correttamente:
+\begin{equation}
+    \langle O \rangle \approx \frac{1}{M} \sum_{i=1}^M O(\{s^{(i)}\})
+\end{equation}
+
+Con $M = 4 \times 10^5$ misure si ottiene precisione statistica eccellente, anche se $M \ll 2^N$.
+
+\subsection{Algoritmo di Metropolis}
+
+L'algoritmo di Metropolis (1953) genera configurazioni secondo $P(\{s\})$ usando una catena di Markov:
+
+\begin{enumerate}
+    \item Scegli un sito casuale $(i,j)$
+    \item Proponi l'inversione: $s_{ij} \to -s_{ij}$
+    \item Calcola $\Delta E = E_{\text{nuova}} - E_{\text{vecchia}}$
+    \item Accetta con probabilità:
+    \begin{equation}
+        P_{\text{acc}} = \min\{1, e^{-\beta \Delta E}\}
+    \end{equation}
+\end{enumerate}
+
+Questo garantisce il bilancio dettagliato e convergenza a $P(\{s\})$.
+
+\subsection{Rallentamento critico}
+
+Vicino a $T_c$, Metropolis diventa estremamente inefficiente. Questo perché:
+
+\begin{itemize}
+    \item La lunghezza di correlazione diverge: $\xi \sim |T - T_c|^{-\nu}$
+    \item Si formano cluster di spin correlati di dimensione $\sim \xi$
+    \item Metropolis inverte un singolo spin per volta
+    \item Per decorrelazione servono $\tau \sim \xi^z$ passi, con $z \approx 2$ (dinamica locale)
+\end{itemize}
+
+Risultato: a $T_c$ su reticolo $L \times L$:
+\begin{equation}
+    \tau_{\text{Metropolis}} \sim L^2
+\end{equation}
+
+Per $L = 100$: servono $\sim 10000$ volte più passi che per $L = 10$.
+
+\subsection{Algoritmo di Wolff}
+
+Wolff (1989) risolve il rallentamento critico aggiornando direttamente un cluster: invece di invertire singoli spin, inverte interi cluster di spin correlati.
+
+\subsubsection{Costruzione del Cluster}
+
+\begin{enumerate}
+    \item Scegli seme $s_0$ casuale
+    \item Inizializza cluster: $C = \{s_0\}$, $\text{occupati} = \{s_0\}$
+    \item Calcola probabilità: $P_{\text{add}} = 1 - e^{-2\beta}$
+    \item Per ogni sito $s \in C$:
+    \begin{itemize}
+        \item Esamina i 4 primi vicini
+        \item Se il vicino ha \emph{stesso spin} e \emph{non è occupato}: aggiungi a C  con prob.  $P_{\text{add}}$
+    \end{itemize}
+    \item Ripeti finché nessun nuovo sito viene aggiunto
+    \item \textbf{Flippa tutto il cluster} $C$ simultaneamente
+\end{enumerate}
+
+\subsubsection{Bilancio dettagliato}
+
+Wolff dimostrò che questa procedura rispetta il bilancio dettagliato con $P_{\text{add}} = 1 - e^{-2\beta}$. La probabilità di costruire un cluster $C$ e il suo complemento $\bar{C}$ sono identiche.
+
+\subsubsection{Efficienza}
+
+Il vantaggio cruciale: a $T_c$, dove esistono cluster naturali di dimensione $\sim L$, Wolff li flippa in un singolo step, questo rende questo algoritmo molto più veloce di Metropolis.
+
+Tempo di autocorrelazione:
+\begin{align}
+    \tau_{\text{Metropolis}} &\sim L^{z}, && z \approx 2 \\
+    \tau_{\text{Wolff}} &\sim L^{z_W}, && z_W \approx 0.25
+\end{align}
+
+\textbf{Speed-up per $L = 100$}:
+\begin{equation}
+    \frac{\tau_{\text{Metropolis}}}{\tau_{\text{Wolff}}} \approx \frac{100^2}{100^{0.25}} \approx \frac{10000}{3.16} \approx 3160
+\end{equation}
+
+Wolff è \textbf{oltre 3000 volte più veloce} vicino a $T_c$!
+
+\subsection{Implementazione Non-Ricorsiva}
+
+Per evitare stack overflow su reticoli grandi, implementiamo Wolff in modo iterativo usando una coda di siti da esplorare (\texttt{pointtoocc}). Questo permette di costruire cluster fino a $L \sim 1000$ senza problemi di memoria.
+
+\section{Dettagli Simulazione}
+
+\subsection{Parametri}
+
+\begin{table}[H]
+\centering
+\small
+\caption{Parametri delle simulazioni}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Parametro} & \textbf{Valore} \\
+\midrule
+Dimensioni $L$ & 40, 60, 80, 100, 120,\\
+                & 140, 160, 180, 200 \\
+Temperature $T$ & 2.1--2.4 (100 punti) \\
+Termalizzazione & 10000 aggiornamenti dei cluster \\
+Misure & 400000 aggiornamenti dei cluster \\
+
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Osservabili}
+Le osservabili che vengono analizzate sono le seguenti:
+\paragraph{Magnetizzazione (valore assoluto medio)}
+La magnetizzazione istantanea è definita come:
+\begin{equation}
+    m = \frac{1}{volume} \sum_{i} s_i
+\end{equation}
+Per studiare la transizione di fase, misuriamo il valore assoluto medio $\langle |m| \rangle$ ovvero:
+\begin{enumerate}
+    \item ad ogni step misuriamo m
+    \item prendiamo il valore assoluto
+    \item cluster update
+    \item ripeti fino a $4 \times 10^5$ passi
+    \item media tutti i valori ottenuti
+\end{enumerate}
+
+\paragraph{Energia per spin}
+\begin{equation}
+    E = -\frac{1}{N} \sum_{\langle i,j \rangle} s_i s_j
+\end{equation}
+
+\paragraph{Suscettività}
+\begin{equation}
+    \chi = \beta N \left(\langle m^2 \rangle - \langle |m| \rangle^2\right)
+\end{equation}
+
+\paragraph{Binder cumulant}
+
+Il Binder cumulant (o quarto cumulante) è una quantità adimensionale particolarmente utile per determinare la temperatura critica in sistemi finiti. È definito come:
+\begin{equation}
+    U_L = \frac{\langle m^4 \rangle}{\langle m^2 \rangle^2}
+\end{equation}
+
+Questa quantità ha proprietà notevoli che la rendono ideale per l'analisi FSS:
+
+\paragraph{Comportamento limite:}
+\begin{itemize}
+    \item \textbf{Fase ordinata} ($T \ll T_c$): La magnetizzazione è quasi costante, $m \approx m_0$. Quindi $\langle m^4 \rangle \approx \langle m^2 \rangle^2$ e $U_L \to 1$.
+    \item \textbf{Fase disordinata} ($T \gg T_c$): Le fluttuazioni sono gaussiane. Per una distribuzione gaussiana, $\langle m^4 \rangle = 3\langle m^2 \rangle^2$, quindi $U_L \to 3$.
+\end{itemize}
+
+Il Binder cumulant viene calcolato accumulando durante la simulazione i momenti $\langle m^2 \rangle$ e $\langle m^4 \rangle$ ad ogni aggiornamento dei cluster e infine, calcolando il rapporto.
+
+\paragraph{Calore specifico}
+Il calore specifico è definito come la derivata dell'energia rispetto alla temperatura:
+\begin{equation}
+    C = \frac{\partial \langle E \rangle}{\partial T}
+\end{equation}
+e viene calcolato tramite il teorema di fluttuazione-dissipazione:
+\begin{equation}
+    C = \beta^2 N \left(\langle E^2 \rangle - \langle E \rangle^2\right)
+\end{equation}
+
+\subsection{Termalizzazione e Analisi degli Errori}
+
+\paragraph{Scelta del periodo di termalizzazione}
+Prima di raccogliere misure statisticamente significative, il sistema deve raggiungere l'equilibrio termico partendo da una configurazione iniziale (in questo caso, completamente ordinata con tutti gli spin $+1$).
+
+In questo caso sono stati eseguiti 10000 cluster update, il motivo è puramente sperimentale, ovvero sono stati tracciati i grafici della magnetizzazione e energia per ogni step temporale, nella configurazione che richiedeva più tempo per essere termalizzata, ovvero il caso in cui $L=200$ e $T=2.4$.
+
+
+\begin{enumerate}
+
+    \item È stato osservato che l'energia raggiunge un plateau stazionario dopo $\sim 1000$ aggiornamenti dei cluster, con fluttuazioni statistiche attorno al valore medio.
+
+    \item La magnetizzazione, invece, si stabilizzava molto più velocemente.
+
+    \item Per sicurezza, è stato scelto un periodo di termalizzazione di 10000 step, ovvero un ordine di grandezza in più, garantendo che il sistema sia completamente termalizzato.
+\end{enumerate}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\columnwidth]{../plots/thermalization.png}
+    \includegraphics[width=\columnwidth]{../plots/thermalization_zoom.png}
+    \caption{Esempio di termalizzazione per $L=200$ a $T=2.4$. Le regioni evidenziate mostrano la fase di termalizzazione (primi 10000 steps, in rosso) e la fase di misura in equilibrio (steps successivi, in verde). Dopo $\sim 1000$ (linea verticale viola) step l'energia ha raggiunto un regime stazionario, la magnetizzazione, invece, lo raggiunge molto prima. In basso uno zoom delle prime 15000 misurazioni}
+    \label{fig:therm}
+\end{figure}
+
+\paragraph{Autocorrelazione e dimensione dei blocchi}
+L'algoritmo di Wolff riduce drasticamente il tempo di autocorrelazione $\tau$ rispetto a Metropolis. Per Ising 2D, è noto dalla letteratura che $\tau_{\text{Wolff}} \sim L^{z_W}$ con $z_W \approx 0.25$. Per $L = 100$, questo corrisponde a $\tau \sim 100^{0.25} \approx 3$ aggiornamenti dei cluster.
+
+Con 400000 misure raccolte dopo la termalizzazione, il numero di configurazioni statisticamente indipendenti è:
+\begin{equation}
+    N_{\text{indep}} \approx \frac{400000}{\tau} \sim \frac{400000}{3-10} \sim 10^5
+\end{equation}
+
+Questo numero è sufficientemente grande da garantire errori statistici piccoli sulle medie. Il numero elevato di misure e il basso tempo di autocorrelazione dell'algoritmo di Wolff rendono gli errori statistici trascurabili rispetto alle incertezze sistematiche dovute agli effetti di finite size.
+
+\paragraph{Stima degli errori}
+Gli errori riportati in questo lavoro hanno diverse origini:
+
+\begin{itemize}
+
+    \item \textbf{Errori sui singoli punti}: Mostrati esplicitamente solo in alcuni grafici per chiarezza visiva, ma tipicamente $< 1\%$ del valore misurato grazie all'elevato numero di misure.
+
+    \item \textbf{Parametri da fit} ($T_c$, $\gamma/\nu$): Errori stimati da \texttt{scipy.optimize.curve\_fit}, che propagano l'incertezza statistica sui dati ai parametri fittati.
+
+    \item \textbf{Binder crossing}: L'errore è stimato come la semi-larghezza della regione di temperatura dove la dispersione $\sigma(U_L)$ rimane entro il 5\% del minimo. Riflette la dispersione residua tra le curve di diversi $L$.
+
+\end{itemize}
+
+\subsection{Implementazione}
+
+\subsection{Architettura del Software}
+Particolare importanza è stata data alla progettazione dell'architettura del software. Questa è modulare, separando nettamente le fasi di simulazione (C), analisi (Python) e presentazione (LaTeX). Questa separazione segue il principio della \emph{separazione dei compiti} e permette di eseguire ri-esecuzioni parziali e una maggiore manutenibilità.
+
+\paragraph{Design Pattern}
+
+L'intero flusso di lavoro è organizzato come una successione di 4 stadi:
+
+\begin{enumerate}
+    \item \textbf{Parallelizzazione}: Codice python che gestisce l'organizzazione delle simulazioni
+    \item \textbf{Compilazione}: Codice C compilato con diverse ottimizzazioni
+    \item \textbf{Simulazione}: Esecuzione Monte Carlo su griglia
+    \item \textbf{Analisi}: Post-processing Python con calcolo esponenti e grafici
+\end{enumerate}
+
+Ogni stadio comunica tramite \emph{file di dati}, permettendo riesecuzioni parziali e debugging indipendente.
+
+\paragraph{Parallelizzazione}
+
+Le simulazioni Monte Carlo sono computazionalmente intensive: una configurazione, ad esempio utilizzando: $L = 80, 100$ con 100 temperature e 400000 misurazioni ciascuna richiede diverse ore di calcolo sequenziale. Poiché ogni coppia $(L, T)$ rappresenta una simulazione completamente indipendente, il problema è facilmente parallelizzabile.
+
+\textbf{Decomposizione del problema:} Il gruppo di simulazioni $(L_1, \ldots, L_n) \times (T_1, \ldots, T_m)$ viene decomposto in $n \times m$ lavori indipendenti. Ogni lavoro $(L_i, T_j)$ è una singola simulazione isolata che produce il file \texttt{data/L\{L\}\_T\{T\}.dat}.
+
+\textbf{Architettura thread-safe:} Lo script \texttt{parallel\_run.py} implementa un bacino di lavoratori tramite \texttt{multiprocessing.Pool}, creando un processo per ogni core CPU disponibile (in questo caso 16). Ogni lavoratore opera in completo isolamento:
+\begin{enumerate}
+    \item Crea una cartella temporanea unica
+    \item Scrive un file \texttt{params.txt} locale con parametri della singola simulazione, ad esempio: \texttt{L = 40}, \texttt{T = 2.100}, \texttt{OUTPUT\_FILE = data/L40\_T2.1000.dat}
+    \item Esegue il binario \texttt{bin/ising\_simulation} dalla cartella temporanea
+    \item Il binario legge i parametri e invoca direttamente \texttt{run\_ising\_simulation()} una volta
+    \item Scrive i dati nel file specificato
+    \item Rimuove la cartella temporanea al termine
+\end{enumerate}
+
+Questa architettura elimina completamente i conflitti: ogni lavoratore ha il proprio file di configurazione isolato, mentre i file in uscita hanno nomi univoci per costruzione (\texttt{L\{L\}\_T\{T:.4f\}.dat}).
+
+\textbf{Prestazioni:} Con 16 core CPU e \texttt{MEASUREMENTS=400000}, una configurazione di 700 simulazioni ($L$ che va da 80 a 200, con passo 20 $\times$ 100 temperature) ha richiesto $\sim$ 176 minuti ($\sim$ 3h) invece di circa 2 giorni sequenziali, ottenendo una velocizzazione di $\sim$16$\times$. Il bacino di lavoratori distribuisce dinamicamente i lavori sui core disponibili, massimizzando l'utilizzo delle risorse.
+
+\paragraph{Modularizzazione del Codice C}
+
+Il simulatore C è diviso in moduli funzionali:
+
+\begin{itemize}
+    \item \textbf{\texttt{main.c}}: Involucro minimale per singola simulazione
+    \begin{itemize}
+        \item Legge \texttt{params.txt} con parametri singolo lavoro (L, T, passi)
+        \item Invoca \texttt{run\_ising\_simulation()} una volta
+    \end{itemize}
+
+    \item \textbf{\texttt{ising\_wolff.c/h}}: Nucleo della simulazione fisica
+    \begin{itemize}
+        \item Implementazione algoritmo di Wolff (aggiornamenti dei cluster)
+        \item Ciclo Monte Carlo (termalizzazione + misure)
+        \item Costruzione cluster non ricorsiva
+        \item Calcolo osservabili (m, E, $\chi$, C, Binder)
+    \end{itemize}
+
+    \item \textbf{\texttt{geometry.c/h}}: Costruzione griglia
+    \begin{itemize}
+        \item Condizioni contorno periodiche
+        \item Calcolo indici vicini (N, S, E, O)
+        \item Mappatura 2D $\to$ 1D: $(i,j) \to i \cdot L + j$
+    \end{itemize}
+
+    \item \textbf{\texttt{random.c/h}}: Interfaccia generatore numeri casuali
+    \begin{itemize}
+        \item Involucro uniforme per PCG32
+        \item Inizializzazione con seme temporale
+    \end{itemize}
+
+    \item \textbf{\texttt{pcg32min.c/h}}: Generatore PCG32
+    \begin{itemize}
+        \item Implementazione algoritmo PCG (Permuted Congruential Generator)
+    \end{itemize}
+\end{itemize}
+
+Questa architettura separa l'involucro minimale (main.c) dalla logica fisica (ising\_wolff.c).
+
+\paragraph{Automazione con Makefile}
+
+Il \texttt{Makefile} implementa target dichiarativi per l'intero processo:
+
+\begin{itemize}
+    \item \texttt{make all}: Compilazione con dipendenze automatiche
+    \item \texttt{make run}: Esegue la simulazione in parallelo su tutti i core CPU
+    \item \texttt{make analyze}: Esegue \texttt{analyze.py} $\to$ genera i grafici e i risultati e li salva in /plots e risultati.txt
+    \item \texttt{make paper}: Compilazione LaTeX
+    \item \texttt{make full}: Intero flusso di lavoro, dalla generazione dei dati, all'analisi
+\end{itemize}
+
+\paragraph{Configurazione Parametrica}
+
+Per una maggiore manutenbilità e chiarezza i parametri iniziali si trovano in \texttt{params.txt}:
+\begin{itemize}
+    \item \texttt{L\_VALUES}: Lista dimensioni reticolo
+    \item \texttt{T\_MIN}, \texttt{T\_MAX}, \texttt{N\_TEMPS}: Griglia temperature
+    \item \texttt{THERMALIZATION}, \texttt{MEASUREMENTS}: Numero aggiornamenti MC
+    \item \texttt{DATA\_DIR}: Cartella di dati
+\end{itemize}
+
+L'eseguibile \texttt{bin/ising\_simulation} legge \texttt{params.txt} all'avvio, costruisce la griglia $(L \times T)$ e lancia tutte le simulazioni.
+
+\paragraph{Post-Processing Python}
+
+\texttt{analyze.py} implementa l'intera analisi dei dati:
+\begin{itemize}
+    \item Caricamento dati dai file .dat
+    \item Calcolo Binder crossing
+    \item Fit della legge di potenza $\chi_{\max} \sim L^{\gamma/\nu}$ con \texttt{scipy.curve\_fit}
+    \item Collasso dei dati dovuto al FSS
+    \item Generazione dei grafici
+    \item Salvataggio dei risultati in \texttt{risultati.txt}
+\end{itemize}
+
+\section{Risultati}
+
+\subsection{Magnetizzazione}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\columnwidth]{../plots/magnetization.png}
+    \caption{Magnetizzazione vs temperatura. La transizione diventa più ripida con $L$.}
+    \label{fig:mag}
+\end{figure}
+
+La Figura~\ref{fig:mag} mostra:
+\begin{itemize}
+    \item $T < T_c$: magnetizzazione spontanea (fase ordinata)
+    \item $T \approx T_c$: transizione rapida
+    \item $T > T_c$: $m \to 0$ (fase disordinata)
+    \item La transizione diventa più ripida all'aumentare di $L$ (effetto della taglia finita)
+\end{itemize}
+
+\subsection{Suscettività}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\columnwidth]{../plots/susceptibility.png}
+    \caption{Suscettività vs temperatura. Valore atteso e valore fittato dei picchi a $T_c$.}
+    \label{fig:chi}
+\end{figure}
+
+I picchi di $\chi$ (Fig.~\ref{fig:chi}) divergono con $L$ secondo $\chi_{\max} \sim L^{\gamma/\nu}$. La posizione dei picchi si sposta con $L$ secondo la legge di Finite Size Scaling:
+\begin{equation}
+    T_{\max}^{(\chi)}(L) = T_c + a \cdot L^{-1/\nu}
+\end{equation}
+dove $\nu = 1$ per Ising 2D. Gli errori su $T_{\max}(L)$ sono stimati mediante bootstrap non parametrico (1000 iterazioni), che tiene conto della forma non gaussiana dei picchi vicino a $T_c$ (vedi Appendice~\ref{app:bootstrap}). Fittando questa relazione ai dati si ottiene:
+\begin{equation}
+    T_c^{(\chi)} = 2.270 \pm 0.001 \quad \chi^2_{\text{red}}=0.36
+\end{equation}
+Il valore è in ottimo accordo con la teoria (< 1$\sigma$) e il $\chi^2_{\text{red}} \approx 0.03$ indica che gli errori bootstrap sono realistici e leggermente conservativi. 
+\subsection{Scaling di $\chi_{\max}$}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\columnwidth]{../plots/chi_scaling.png}
+    \caption{Scaling log-log di $\chi_{\max}$ vs $L$. Fit: $\gamma/\nu = 1.750 \pm 0.005$ con $\chi^2_{red} = 0.86$.}
+    \label{fig:scaling}
+\end{figure}
+
+La Figura~\ref{fig:scaling} mostra $\chi_{\max} \sim L^{\gamma/\nu}$ con fit usando \texttt{scipy.optimize.curve\_fit}:
+\begin{equation}
+    \gamma/\nu = 1.7498 \pm 0.0049, \quad \chi^2_{\text{red}} = 0.86
+\end{equation}
+Il valore atteso dalla teoria è $\gamma/\nu=1.75$, che è in perfetto accordo con i risultati ottenuti (differenza $\sim 0.01\%$). Questo è confermato anche dal valore del $\chi^2_{\text{red}} = 0.86$, che indica l'ottima qualità del fit essendo $\sim 1$.
+
+\subsection{Data Collapse}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\columnwidth]{../plots/fss_collapse.png}
+    \caption{Finite Size Scaling: data collapse della suscettività. La curva riscalata rappresenta la funzione di scaling universale $\tilde{\chi}(x)$.}
+    \label{fig:fss}
+\end{figure}
+Il collasso delle curve (Fig.~\ref{fig:fss}) valida la teoria FSS usando $T_c = 2.269$. La figura mostra la funzione di scaling universale $\tilde{\chi}(x)$ ottenuta graficando $\chi/L^{\gamma/\nu}$ vs $x = L^{1/\nu}(T - T_c)$. Il fatto che tutte le curve per diversi valori di $L$ collassino su un'unica curva conferma l'invarianza di scala della funzione universale e l'accuratezza dei parametri critici utilizzati ($T_c$, $\gamma/\nu$).
+
+\subsection{Binder Cumulant}
+
+Il Binder cumulant fornisce un metodo robusto per determinare $T_c$ tramite il crossing point delle curve $U_L(T)$ per diversi $L$. Il punto di intersezione è stato determinato minimizzando la dispersione $\sigma(T)$ tra i valori di $U_L(T)$ (vedi Appendice~\ref{app:binder} per i dettagli dell'algoritmo).
+
+Otteniamo la stima:
+\begin{equation}
+    T_c^{B}=2.2690 \pm 0.0001
+\end{equation}
+
+Questa misura è in eccellente accordo con il valore teorico (errore $\sim 0.03$ mK, $< 1\sigma$), ed è la stima più precisa tra i tre metodi utilizzati. 
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\columnwidth]{../plots/binder_cumulant.png}
+    \caption{Binder cumulant su temperatura. Il crossing point delle curve per diversi $L$ rappresenta $T_c$.}
+    \label{fig:binder}
+\end{figure}
+
+\subsection{Energia e Calore Specifico}
+
+L'energia per spin e il calore specifico forniscono informazioni complementari sulla transizione di fase.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\columnwidth]{../plots/energy_heat.png}
+    \caption{Energia per spin e calore specifico su temperatura. (a) L'energia mostra una transizione continua ma ripida a $T_c$. (b) Il calore specifico presenta un picco marcato alla transizione. Non sono stati inseriti gli errori per una maggiore comprensione visiva, tuttavia, un grafico con le barre di errore è inserito sotto.}
+    \label{fig:EC}
+\end{figure}
+
+\paragraph{Energia per spin:}
+La Figura~\ref{fig:EC}(a) mostra l'andamento di $E(T)$. Osserviamo (anche se i limiti non sono ben visibili per tutte le lunghezze $L$ a causa del range di temperature limitato):
+\begin{itemize}
+    \item \textbf{Fase ferromagnetica} ($T < T_c$): $E \to -2$ (energia minima: tutti gli spin allineati, ogni spin ha 4 vicini con orientazione uguale, contribuendo $-4 \times 1/2 = -2$ per spin).
+    \item \textbf{Fase paramagnetica} ($T > T_c$): $E \to 0$ (spin disordinati, contributi positivi e negativi si bilanciano in media).
+    \item \textbf{Transizione continua}: A differenza di una transizione del primo ordine, non c'è discontinuità (salto) nell'energia. La transizione è \emph{continua} ma con derivata divergente.
+\end{itemize}
+
+La pendenza crescente di $E(T)$ vicino a $T_c$ segnala l'aumento delle fluttuazioni termiche, misurate dal calore specifico.
+
+\paragraph{Calore specifico:}
+Il calore specifico $C = \frac{\partial E}{\partial T} = \beta^2 N (\langle E^2 \rangle - \langle E \rangle^2)$ quantifica la capacità del sistema di assorbire energia termica. La Figura~\ref{fig:EC}(b) mostra un picco pronunciato a $T_c$.
+
+Per il modello di Ising 2D, la teoria di Onsager predice una \textbf{divergenza logaritmica}:
+\begin{equation}
+    C(T) \sim -\ln|T - T_c|
+\end{equation}
+
+Caratteristiche osservate:
+\begin{itemize}
+    \item \textbf{Picco a $T_c$}: Il massimo indica la temperatura dove le fluttuazioni di energia sono massime, corrispondente alla transizione di fase. Questo scala come 1/$L$, questo ci permette di effettuare un fit.
+    \item \textbf{Altezza crescente con $L$}: Su sistemi finiti, il picco cresce con $L$ ma rimane finito.
+\end{itemize}
+
+La temperatura del massimo di $C$ presenta il seguente andamento FSS:
+\begin{equation}
+    T_{\max}^{(C)}(L) = T_c + b \cdot L^{-1}
+\end{equation}
+Gli errori su $T_{\max}(L)$ sono stimati con bootstrap (1000 iterazioni), analogamente al caso della suscettività. Utilizzando questa relazione, otteniamo:
+\begin{equation}
+    T_c^C = 2.265 \pm 0.004 \quad \chi^2_{\text{red}} = 0.16
+\end{equation}
+Il valore è in buon accordo con la teoria (errore $\sim 1\sigma$), anche se presenta un errore maggiore rispetto alle altre stime a causa degli errori più grandi sul calore specifico, come visibile dal grafico qui sotto:
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\columnwidth]{../plots/heat_with_errors.png}
+    \caption{Calore specifico su temperatura, con bande di errore. Le bande di errore risultano essere abbastanza grandi da essere ben visibili, e peggiorare la visibilità.}
+    \label{fig:EC_err}
+\end{figure}
+\section{Conclusioni}
+
+È stato studiato numericamente la transizione di fase del modello di Ising 2D con l'algoritmo di Wolff. I risultati principali:
+
+\begin{enumerate}
+    \item \textbf{Temperatura critica}:
+    \begin{itemize}
+        \item Valore esatto (Onsager): $T_c = 2.269185...$
+        \item Binder crossing: $T_c^B = 2.2690 \pm 0.0001$ (errore $<2\sigma$)
+        \item FSS picchi $\chi$: $T_c^{\chi} = 2.270 \pm 0.001 $ ($\chi^2_{\text{red}} = 0.36$)
+        \item FSS picchi $C$: $T_c^C = 2.265 \pm 0.004$ ($\chi^2_{\text{red}} = 0.16$)
+    \end{itemize}
+    I tre metodi danno risultati in buon accordo tra loro e con il valore teorico (tutti entro 1-2 $\sigma$). Gli errori sui picchi sono stati stimati con bootstrap non parametrico (1000 iterazioni), che tiene conto della forma non gaussiana dei picchi nella regione critica. I valori dei $\chi^2_{\text{red}}$ confermano che gli errori bootstrap sono realistici.
+
+    \item \textbf{Esponente critico}: $\gamma/\nu = 1.750 \pm 0.005$ (esatto: $1.75$), con $\chi^2_{\text{red}} = 0.86$. L'accordo è eccellente, confermando la validità dell'andamento a legge di potenza $\chi_{\max} \sim L^{\gamma/\nu}$.
+
+    \item \textbf{Finite Size Scaling}: Il data collapse di $\chi/L^{\gamma/\nu}$ vs $L^{1/\nu}(T-T_c)$ conferma la validità della teoria FSS.
+\end{enumerate}
+
+\newpage
+\section*{Appendice}
+
+\subsection{Minimizzazione della Dispersione del Binder Cumulant}
+\label{app:binder}
+
+Il punto di intersezione delle curve $U_L(T)$ per diversi $L$ è stato determinato minimizzando la dispersione (deviazione standard) tra i valori di $U_L(T)$ per tutti gli $L$ considerati, in funzione della temperatura. In altre parole, si cerca la temperatura $T^*$ alla quale la varianza:
+\begin{equation}
+    \sigma^2(T) = \frac{1}{N_L} \sum_{i} \left[U_{L_i}(T) - \bar{U}(T)\right]^2
+\end{equation}
+è minima, dove $\bar{U}(T)$ è la media di $U_L(T)$ su tutti gli $L$ alla temperatura $T$ fissata.
+
+\paragraph{Algoritmo implementato}
+La determinazione di $T_c^B$ procede come segue:
+\begin{enumerate}
+    \item Si crea una griglia molto fine di temperature (50000 punti) nell'intervallo di interesse
+    \item Si interpola linearmente $U_L(T)$ da ciascun dataset (che ha i suoi punti $T$ misurati). Questo permette di valutare tutti gli $U_L$ alla stessa temperatura per calcolare la dispersione
+    \item Per ogni temperatura si calcola la deviazione standard $\sigma(T)$ di $U_L(T)$ rispetto alla media $\bar{U}(T)$ su tutti gli $L$
+    \item Il minimo di $\sigma(T)$ identifica la temperatura dove le curve sono più vicine tra loro, cioè il punto di intersezione
+\end{enumerate}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\columnwidth]{../plots/binder_dispersion.png}
+    \caption{Dispersione dei valori del Binder cumulant in funzione della temperatura, nell'intervallo $[2.2,2.3]$. Il minimo della dispersione indica la temperatura dove le curve $U_L(T)$ per diversi $L$ si incrociano maggiormente, fornendo una stima robusta di $T_c$. La linea tratteggiata rossa rappresenta il minimo della dispersione ($T_c^B = 2.2690$), mentre la linea punteggiata verde rappresenta il valore teorico ($T_c = 2.269$).}
+    \label{fig:binder_disp_app}
+\end{figure}
+
+L'errore su $T_c^B$ è stimato come la semi-larghezza della regione di temperatura dove $\sigma(T)$ rimane entro il 5\% del minimo. Questo approccio riflette la dispersione residua tra le curve di diversi $L$ e fornisce una stima conservativa dell'incertezza.
+
+\subsection{Metodo Bootstrap per la Stima degli Errori sui Picchi}
+\label{app:bootstrap}
+
+Gli errori sulle temperature dei picchi $T_{\max}^{(\chi)}(L)$ e $T_{\max}^{(C)}(L)$ sono stati stimati mediante \textbf{bootstrap non parametrico}, un metodo di ricampionamento che non assume alcuna forma funzionale specifica per la distribuzione degli errori.
+
+\paragraph{Motivazione fisica}
+Vicino alla temperatura critica, i picchi di suscettività e calore specifico non hanno forma gaussiana. La teoria del Finite Size Scaling prevede che:
+\begin{equation}
+    \chi(T,L) = L^{\gamma/\nu} \tilde{\chi}\left(L^{1/\nu}(T-T_c)\right)
+\end{equation}
+
+dove $\tilde{\chi}(x)$ è una funzione di scaling universale con code a legge di potenza.
+
+\paragraph{Algoritmo bootstrap implementato}
+Per ogni dimensione $L$ e osservabile ($\chi$ o $C$):
+\begin{enumerate}
+    \item Si identifica il picco: $T_{\max} = T[i_{\max}]$ dove $i_{\max} = \arg\max O(T)$
+    \item Si estrae una finestra di 11 punti attorno al picco: $\pm 5$ punti
+    \item Si eseguono $N_{\text{boot}} = 1000$ iterazioni bootstrap:
+    \begin{itemize}
+        \item Si genera un campione bootstrap aggiungendo rumore gaussiano $\mathcal{N}(0, \sigma_{O}(T_i))$ ai dati:
+        \begin{equation}
+            O_{\text{boot}}(T_i) = O(T_i) + \mathcal{N}(0, \sigma_{O}(T_i))
+        \end{equation}
+        dove $\sigma_O(T_i)$ è l'errore statistico misurato su $O(T_i)$
+        \item Si trova il massimo del campione bootstrap: $T_{\max}^{(r)} = T[i_{\max}^{(r)}]$
+    \end{itemize}
+    \item L'errore è stimato come la deviazione standard della distribuzione bootstrap:
+    \begin{equation}
+        \sigma_{T_{\max}} = \sqrt{\frac{1}{N_{\text{boot}}} \sum_{r=1}^{N_{\text{boot}}} \left(T_{\max}^{(r)} - \langle T_{\max} \rangle\right)^2}
+    \end{equation}
+\end{enumerate}
+
+\paragraph{Vantaggi del metodo}
+
+\begin{itemize}
+    \item \textbf{Non parametrico}: Non assume alcuna forma funzionale del picco (gaussiana, lorentziana, etc.)
+    \item \textbf{Usa errori reali}: Incorpora gli errori statistici effettivi $\sigma_\chi(T)$ e $\sigma_C(T)$ dalle simulazioni Monte Carlo
+    \item \textbf{Robusto}: Con 1000 iterazioni, la stima è stabile e riproducibile
+\end{itemize}
+
+\paragraph{Confronto con altri metodi}
+Durante l'analisi sono stati confrontati diversi metodi:
+\begin{itemize}
+    \item \textbf{FWHM gaussiano} ($\sigma = \text{FWHM}/2.355$): Sovrastima gli errori ($\chi^2_{\text{red}} \ll 1$) perché assume forma gaussiana
+    \item \textbf{Fit parabolico}: Sottostima gli errori perché non tiene conto delle asimmetrie del picco
+    \item \textbf{Bootstrap}: Fornisce il migior risultato nonostante il costo computazionale sia più elevato
+\end{itemize}
+
+Il metodo bootstrap è risultato ottimale, con $\chi^2_{\text{red}}$ vicini ai valori ideali ($\sim 0.03-0.86$) e stime di $T_c$ in perfetto accordo con il valore teorico.
+
+\end{multicols}
+
+\end{document}

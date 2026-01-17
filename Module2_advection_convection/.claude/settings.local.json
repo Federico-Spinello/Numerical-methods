@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dpkg:*)",
+      "Bash(pdflatex:*)",
+      "Bash(make paper-clean:*)",
+      "Bash(make:*)",
+      "Bash(python3:*)",
+      "Bash(source venv/bin/activate)",
+      "Bash(python:*)",
+      "Bash(./sim:*)",
+      "Bash(cat:*)",
+      "Bash(timeout 60 ./sim:*)",
+      "Bash(chmod:*)",
+      "Bash(./test_stability.sh)",
+      "Bash(ls:*)",
+      "Bash(./venv/bin/python3:*)",
+      "Bash(rm:*)"
+    ]
+  }
+}
