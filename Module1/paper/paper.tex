@@ -535,21 +535,21 @@ I picchi di $\chi$ (Fig.~\ref{fig:chi}) divergono con $L$ secondo $\chi_{\max} \
 \end{equation}
 dove $\nu = 1$ per Ising 2D. Gli errori su $T_{\max}(L)$ sono stimati mediante bootstrap non parametrico (1000 iterazioni), che tiene conto della forma non gaussiana dei picchi vicino a $T_c$ (vedi Appendice~\ref{app:bootstrap}). Fittando questa relazione ai dati si ottiene:
 \begin{equation}
-    T_c^{(\chi)} = 2.270 \pm 0.001 \quad \chi^2_{\text{red}}=0.36
+    T_c^{(\chi)} = 2.270 \pm 0.001 \quad \chi^2_{\text{red}}=0.37
 \end{equation}
-Il valore è in ottimo accordo con la teoria (< 1$\sigma$) e il $\chi^2_{\text{red}} \approx 0.03$ indica che gli errori bootstrap sono realistici e leggermente conservativi. 
+Il valore è in ottimo accordo con la teoria (< 1$\sigma$) e il $\chi^2_{\text{red}} \approx 0.4$ indica che gli errori bootstrap sono realistici e leggermente conservativi. 
 \subsection{Scaling di $\chi_{\max}$}
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=\columnwidth]{../plots/chi_scaling.png}
-    \caption{Scaling log-log di $\chi_{\max}$ vs $L$. Fit: $\gamma/\nu = 1.750 \pm 0.005$ con $\chi^2_{red} = 0.86$.}
+    \caption{Scaling log-log di $\chi_{\max}$ vs $L$. Fit: $\gamma/\nu = 1.750 \pm 0.005$ con $\chi^2_{red} = 1.29$.}
     \label{fig:scaling}
 \end{figure}
 
 La Figura~\ref{fig:scaling} mostra $\chi_{\max} \sim L^{\gamma/\nu}$ con fit usando \texttt{scipy.optimize.curve\_fit}:
 \begin{equation}
-    \gamma/\nu = 1.7498 \pm 0.0049, \quad \chi^2_{\text{red}} = 0.86
+    \gamma/\nu = 1.7498 \pm 0.0049, \quad \chi^2_{\text{red}} = 1.29
 \end{equation}
 Il valore atteso dalla teoria è $\gamma/\nu=1.75$, che è in perfetto accordo con i risultati ottenuti (differenza $\sim 0.01\%$). Questo è confermato anche dal valore del $\chi^2_{\text{red}} = 0.86$, che indica l'ottima qualità del fit essendo $\sim 1$.
 

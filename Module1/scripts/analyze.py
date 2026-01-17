@@ -33,7 +33,7 @@ PLOTS_DIR.mkdir(exist_ok=True)  # Crea la directory se non esiste
 PARAMS_FILE = Path("params.txt")
 
 # Parametri fisici noti per Ising 2D
-T_C_EXACT = 2.269  # Temperatura critica esatta (soluzione di Onsager)
+T_C_EXACT = 2.26918  # Temperatura critica esatta (soluzione di Onsager)
 GAMMA_NU = 1.75    # Esponente critico γ/ν per Ising 2D
 NU = 1.0           # Esponente critico ν per Ising 2D
 
@@ -172,8 +172,6 @@ def save_results(results_dict):
         f.write("-"*70 + "\n")
         f.write("TEMPERATURA CRITICA\n")
         f.write("-"*70 + "\n")
-        f.write("(Errori su T_max stimati con bootstrap non parametrico, 1000 iterazioni)\n")
-        f.write("\n")
         f.write(f"Tc teorico (Onsager):          {results_dict['Tc_theory']:.5f}\n")
         f.write(f"Tc da picchi chi(L):           {results_dict['Tc_peaks']:.4f} +/- {results_dict['Tc_peaks_err']:.4f}\n")
         f.write(f"  chi^2_red (FSS fit):         {results_dict.get('chi2_red_chi', 0.0):.4f}\n")
@@ -187,23 +185,7 @@ def save_results(results_dict):
         f.write("-"*70 + "\n")
         f.write(f"gamma/nu misurato:                {results_dict['gamma_nu']:.4f} +/- {results_dict['gamma_nu_err']:.4f}\n")
         f.write(f"gamma/nu teorico:                 {results_dict['gamma_nu_theory']:.4f}\n")
-        f.write(f"Errore percentuale:          {results_dict['gamma_nu_error_pct']:.2f}%\n")
         f.write(f"chi^2_red (collapse chi/L^gamma/nu):   {results_dict.get('chi2_red_scaling', results_dict['gamma_nu_chi2']):.4f}\n")
-
-        f.write("-"*70 + "\n")
-        f.write("BINDER CUMULANT\n")
-        f.write("-"*70 + "\n")
-        f.write(f"U* al crossing:              {results_dict['U_star']:.4f} +/- {results_dict['U_star_err']:.4f}\n")
-        f.write(f"U* teorico:                  {results_dict['U_star_theory']:.4f}\n")
-        f.write("\n")
-
-        f.write("="*70 + "\n")
-        f.write("MIGLIOR STIMA FINALE\n")
-        f.write("="*70 + "\n")
-        f.write(f"Tc = {results_dict['Tc_binder']:.4f} +/- {results_dict['Tc_binder_err']:.4f}\n")
-        f.write(f"gamma/nu = {results_dict['gamma_nu']:.4f} +/- {results_dict['gamma_nu_err']:.4f}\n")
-        f.write(f"Errore Tc: {results_dict['Tc_binder_error_mK']:.2f} mK ({results_dict['Tc_binder_error_pct']:.3f}%)\n")
-        f.write("="*70 + "\n")
 
     print(f"  Risultati salvati in: {txt_file}")
 
@@ -448,18 +430,22 @@ def plot_chi_scaling(data):
     def power_law(L, A, gamma_nu):
         return A * L**gamma_nu
 
-    # Fit con curve_fit
+    # Fit con curve_fit (senza pesi)
     popt, pcov = curve_fit(power_law, L_values, chi_max, p0=[1.0, GAMMA_NU])
     A_fit, exponent = popt
     perr = np.sqrt(np.diag(pcov))
     A_err, exponent_err = perr
 
     # Calcola chi^2 ridotto
+    # Metodo: stima sigma dai residui (fit non pesato)
     residuals = chi_max - power_law(L_values, *popt)
     n_params = 2  # A e gamma/nu
     dof = len(chi_max) - n_params  # gradi di liberta
+
     # Stima sigma dai residui
     sigma = np.std(residuals)
+
+    # Calcolo chi^2 ridotto
     chi2_gamma = np.sum((residuals / sigma)**2)
     chi2_red_gamma = chi2_gamma / dof
 
@@ -932,16 +918,6 @@ def main():
 
     print("-" * 70)
 
-    # Calcola U* al crossing
-    U_at_Tc = []
-    for L in L_values:
-        T_data = data[L]['T']
-        U_data = data[L]['binder']
-        U_interp = np.interp(Tc_binder, T_data, U_data)
-        U_at_Tc.append(U_interp)
-    U_star = np.mean(U_at_Tc)
-    U_star_err = np.std(U_at_Tc)
-
     # Riepilogo risultati
     print("\n" + "="*70)
     print("  RISULTATI")
@@ -982,10 +958,7 @@ def main():
         'gamma_nu': float(exponent),
         'gamma_nu_err': float(exponent_err),
         'gamma_nu_theory': float(GAMMA_NU),
-        'gamma_nu_error_pct': float(abs(exponent - GAMMA_NU) / GAMMA_NU * 100),
         'gamma_nu_chi2': float(chi2_red_gamma),
-        'U_star': float(U_star),
-        'U_star_err': float(U_star_err),
         'U_star_theory': 1.6,
         'heat_peaks': heat_peaks_details
     }
