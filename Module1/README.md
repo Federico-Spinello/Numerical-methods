@@ -966,29 +966,6 @@ Il Makefile usa direttamente `venv/bin/python3`.
 
 ## 📝 Note Tecniche
 
-### Stile del Codice
-
-Il codice C segue lo **stile "vecchia maniera"** del materiale didattico:
-
-- Parentesi graffe su righe separate
-- `long int` per indici e dimensioni
-- `int*` e `long int*` semplici (NO typedef struct)
-- Commenti abbondanti in italiano
-- Nomi variabili semplici: `L`, `T`, `beta`, `chi`, `m`, `E`
-- `malloc` esplicito con controllo errori
-- Tutto in `main.c` (funzioni helper inline)
-
-**Esempio**:
-```c
-// Alloca il reticolo
-lattice = (int *)malloc((unsigned long int)(volume) * sizeof(int));
-if(lattice == NULL)
-  {
-  fprintf(stderr, "problema allocazione at (%s, %d)\n", __FILE__, __LINE__);
-  return EXIT_FAILURE;
-  }
-```
-
 ### RNG: PCG32
 
 Usiamo **PCG32** (Permuted Congruential Generator):
@@ -1055,49 +1032,6 @@ free(pointtoocc);
 
 ---
 
-## 📚 Riferimenti
-
-### Paper Fondamentali
-
-1. **Lars Onsager** (1944)
-   *"Crystal Statistics. I. A Two-Dimensional Model with an Order-Disorder Transition"*
-   Physical Review **65**, 117
-   → Soluzione esatta del modello di Ising 2D
-
-2. **Nicholas Metropolis et al.** (1953)
-   *"Equation of State Calculations by Fast Computing Machines"*
-   Journal of Chemical Physics **21**, 1087
-   → Algoritmo di Metropolis originale
-
-3. **Uwe Wolff** (1989)
-   *"Collective Monte Carlo Updating for Spin Systems"*
-   Physical Review Letters **62**, 361
-   → Algoritmo di Wolff (cluster updates)
-
-4. **Kurt Binder** (1981)
-   *"Finite size scaling analysis of Ising model block distribution functions"*
-   Zeitschrift für Physik B **43**, 119
-   → Binder cumulant per determinare Tc
-
-### Libri Consigliati
-
-- **Newman & Barkema** - *"Monte Carlo Methods in Statistical Physics"*
-  Cambridge University Press (1999)
-
-- **Landau & Binder** - *"A Guide to Monte Carlo Simulations in Statistical Physics"*
-  Cambridge University Press (2014)
-
-- **Cardy** - *"Scaling and Renormalization in Statistical Physics"*
-  Cambridge University Press (1996)
-
-### Documentazione Progetto
-
-- **istruzioni.txt** - Documentazione tecnica completa (473 linee)
-- **params.txt** - Parametri simulazione con commenti
-- **paper/paper.tex** - Paper scientifico LaTeX completo
-
----
-
 ## 🎯 Conclusioni
 
 Questo progetto dimostra:
@@ -1132,60 +1066,8 @@ Questo progetto dimostra:
 - 11 grafici dettagliati per analisi completa
 - Paper LaTeX con appendici metodologiche
 
-**Il risultato: fisica quantitativa precisa da simulazioni numeriche!**
 
 ---
-
-## 🆘 Troubleshooting
-
-### Errore: "scipy not found"
-
-```bash
-make venv-setup
-# oppure
-venv/bin/pip install scipy
-```
-
-### Simulazione troppo lenta
-
-Riduci parametri in `params.txt`:
-```bash
-L_VALUES = 20,40       # Rimuovi L grandi
-N_TEMPS = 31           # Riduci punti
-MEASUREMENTS = 50000   # Riduci misure
-```
-
-### Grafici non generati
-
-```bash
-# Verifica presenza dati
-ls data/
-
-# Se vuoto, esegui simulazioni
-make run
-
-# Poi analizza
-make analyze
-```
-
-### Errori compilazione
-
-```bash
-make clean
-make all
-```
-
-### Reset completo
-
-```bash
-make cleanall
-make full
-```
-
----
-
-**Per aiuto**: `make help` o consulta `istruzioni.txt`
-
 **Autore**: Federico Spinello
 **Corso**: Metodi Numerici per la Fisica
 **Anno**: 2026
