@@ -143,11 +143,17 @@ def generate_temperature_grid(T_min, T_max, n_temps):
     Returns:
         list: lista di temperature
     """
-    if n_temps == 1:
-        return [T_min]
 
+    # Calcolo del passo di temperatura
     delta_T = (T_max - T_min) / (n_temps - 1)
-    return [T_min + i * delta_T for i in range(n_temps)]
+
+    # Costruzione della lista di temperature
+    temperatures = []
+    for i in range(n_temps):
+        T = T_min + i * delta_T
+        temperatures.append(T)
+
+    return temperatures
 
 
 def generate_jobs(params):
@@ -187,14 +193,13 @@ def write_job_params(temp_dir, L, T, params):
         T: temperatura
         params: dizionario parametri globali
     """
+    output_file = f"{params['DATA_DIR']}/L{L}_T{T:.4f}.dat"
     params_content = f"""# Parametri per singola simulazione (generato da parallel_run.py)
-L_VALUES = {L}
-T_MIN = {T}
-T_MAX = {T}
-N_TEMPS = 1
+L = {L}
+T = {T}
 THERMALIZATION = {params['THERMALIZATION']}
 MEASUREMENTS = {params['MEASUREMENTS']}
-DATA_DIR = {params['DATA_DIR']}
+OUTPUT_FILE = {output_file}
 """
     params_file = Path(temp_dir) / "params.txt"
     with open(params_file, 'w') as f:
@@ -239,7 +244,11 @@ def run_single_simulation(job_args):
 
         # Verifica successo
         if result.returncode != 0:
-            error_msg = result.stderr[:300] if result.stderr else "Unknown error"
+            # Estrai il messaggio di errore (tronca se troppo lungo)
+            if result.stderr:
+                error_msg = result.stderr[:300]
+            else:
+                error_msg = "Unknown error"
             return {
                 'job_id': job_id,
                 'L': L,
@@ -301,26 +310,62 @@ def run_single_simulation(job_args):
 
 
 def print_progress_bar(current, total, width=50, prefix='', suffix=''):
-    """Stampa una barra di progresso."""
+    """
+    Stampa una barra di progresso sulla stessa riga.
+
+    Args:
+        current: numero di elementi completati
+        total: numero totale di elementi
+        width: larghezza della barra in caratteri
+        prefix: testo da mostrare prima della barra
+        suffix: testo da mostrare dopo la barra
+    """
+    # Calcola la percentuale di completamento
     percent = current / total
+
+    # Calcola quanti caratteri della barra riempire
     filled = int(width * percent)
-    bar = '=' * filled + '-' * (width - filled)
-    sys.stdout.write(f'\r{prefix} [{bar}] {current}/{total} ({percent*100:.1f}%) {suffix}')
+
+    # Costruisce la barra con '=' per la parte completata e '-' per quella rimanente
+    bar_filled = '=' * filled
+    bar_empty = '-' * (width - filled)
+    bar = bar_filled + bar_empty
+
+    # Calcola la percentuale come stringa
+    percent_str = f"{percent * 100:.1f}%"
+
+    # Stampa la barra sovrascrivendo la riga precedente
+    output = f'\r{prefix} [{bar}] {current}/{total} ({percent_str}) {suffix}'
+    sys.stdout.write(output)
     sys.stdout.flush()
 
 
 def format_duration(seconds):
-    """Formatta una durata in formato leggibile."""
+    """
+    Formatta una durata in secondi in un formato leggibile.
+
+    Args:
+        seconds: durata in secondi
+
+    Returns:
+        str: durata formattata (es. "45.2s", "3m 20s", "1h 15m")
+    """
+    # Caso 1: meno di un minuto -> mostra secondi con decimale
     if seconds < 60:
         return f"{seconds:.1f}s"
+
+    # Caso 2: meno di un'ora -> mostra minuti e secondi
     elif seconds < 3600:
-        m = int(seconds // 60)
-        s = int(seconds % 60)
-        return f"{m}m {s}s"
+        minuti = int(seconds // 60)
+        secondi = int(seconds % 60)
+        return f"{minuti}m {secondi}s"
+
+    # Caso 3: un'ora o più -> mostra ore e minuti
     else:
-        h = int(seconds // 3600)
-        m = int((seconds % 3600) // 60)
-        return f"{h}h {m}m"
+        ore = int(seconds // 3600)
+        secondi_rimanenti = seconds % 3600
+        minuti = int(secondi_rimanenti // 60)
+        return f"{ore}h {minuti}m"
 
 
 # ============================================================================
@@ -368,7 +413,10 @@ def main():
     print()
 
     # Prepara argomenti per i worker
-    job_args = [(job_id, L, T, params, str(BIN_PATH)) for job_id, L, T in jobs]
+    job_args = []
+    for job_id, L, T in jobs:
+        args_tuple = (job_id, L, T, params, str(BIN_PATH))
+        job_args.append(args_tuple)
 
     # Esegui in parallelo
     print("Avvio simulazioni...")
@@ -385,6 +433,7 @@ def main():
         for result in pool.imap_unordered(run_single_simulation, job_args):
             completed += 1
 
+            # Controlla se il job è riuscito o fallito
             if result['success']:
                 status = "OK"
             else:
@@ -412,18 +461,32 @@ def main():
     print(f"  Simulazioni fallite: {failed}")
     print(f"  Tempo totale: {format_duration(total_time)}")
 
-    if n_jobs > 0:
-        speedup = (total_time / n_jobs) * n_cpus / (total_time / completed) if completed > 0 else 0
+    # Calcola e mostra lo speedup stimato
+    if n_jobs > 0 and completed > 0:
+        tempo_medio_per_job = total_time / completed
+        tempo_sequenziale_stimato = tempo_medio_per_job * n_jobs
+        speedup = tempo_sequenziale_stimato / total_time
         print(f"  Speedup stimato: ~{speedup:.1f}x")
 
     # Report job falliti
     if failed_jobs:
         print()
         print("  Job falliti:")
-        for job in failed_jobs[:10]:  # Mostra max 10
-            print(f"    L={job['L']}, T={job['T']:.4f}: {job['message'][:50]}")
-        if len(failed_jobs) > 10:
-            print(f"    ... e altri {len(failed_jobs) - 10} job")
+
+        # Mostra al massimo 10 job falliti per non riempire lo schermo
+        max_jobs_to_show = 10
+        jobs_to_display = failed_jobs[:max_jobs_to_show]
+
+        for job in jobs_to_display:
+            L_value = job['L']
+            T_value = job['T']
+            message = job['message'][:50]  # Tronca messaggi lunghi
+            print(f"    L={L_value}, T={T_value:.4f}: {message}")
+
+        # Se ci sono altri job falliti, indica quanti
+        remaining_failed = len(failed_jobs) - max_jobs_to_show
+        if remaining_failed > 0:
+            print(f"    ... e altri {remaining_failed} job")
 
     print()
     print("=" * 70)
