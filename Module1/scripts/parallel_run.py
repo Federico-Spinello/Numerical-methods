@@ -345,6 +345,7 @@ def main():
     # Carica parametri
     params = parse_params()
 
+
     # Crea directory data se non esiste
     data_dir = Path(params['DATA_DIR'])
     data_dir.mkdir(parents=True, exist_ok=True)
