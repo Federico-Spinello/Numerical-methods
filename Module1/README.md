@@ -37,11 +37,12 @@ Questo progetto implementa una simulazione Monte Carlo del **modello di Ising 2D
 
 ## 📊 Risultati Principali
 
-| Metodo | Tc Misurato | χ²_red | Tc Teorico | Accordo |
-|--------|-------------|--------|------------|---------|
-| Binder crossing | 2.2690 ± 0.0001 | - | 2.26918 | < 1σ |
-| Picchi χ (FSS) | 2.2699 ± 0.0014 | 0.36 | 2.26918 | < 1σ |
-| Picchi C (FSS) | 2.2649 ± 0.0039 | 0.14 | 2.26918 | < 1σ |
+| Metodo | Tc Misurato | χ²_red | Accordo |
+|--------|-------------|--------|---------|
+| Tc teorico      | 2.26918 | - | - |
+| Binder crossing | 2.2690 ± 0.0001 | -   | < 2σ |
+| Picchi χ (FSS) | 2.2699 ± 0.0014 | 0.36 | < 1σ |
+| Picchi C (FSS) | 2.2649 ± 0.0039 | 0.14 | < 1σ |
 
 **Esponente critico**: γ/ν = 1.7498 ± 0.0049 (teorico: 1.75, errore 0.01%, χ²_red = 1.29)
 
