@@ -549,9 +549,9 @@ Il valore è in ottimo accordo con la teoria (< 1$\sigma$) e il $\chi^2_{\text{r
 
 La Figura~\ref{fig:scaling} mostra $\chi_{\max} \sim L^{\gamma/\nu}$ con fit usando \texttt{scipy.optimize.curve\_fit}:
 \begin{equation}
-    \gamma/\nu = 1.7498 \pm 0.0049, \quad \chi^2_{\text{red}} = 1.29
+    \gamma/\nu = 1.750 \pm 0.005, \quad \chi^2_{\text{red}} = 1.29
 \end{equation}
-Il valore atteso dalla teoria è $\gamma/\nu=1.75$, che è in perfetto accordo con i risultati ottenuti (differenza $\sim 0.01\%$). Questo è confermato anche dal valore del $\chi^2_{\text{red}} = 0.86$, che indica l'ottima qualità del fit essendo $\sim 1$.
+Il valore atteso dalla teoria è $\gamma/\nu=1.75$, che è in perfetto accordo con i risultati ottenuti (differenza entro 1$\sigma$). Questo è confermato anche dal valore del $\chi^2_{\text{red}} = 1.29$, che indica la buona qualità del fit essendo $\sim 1$.
 
 \subsection{Data Collapse}
 
@@ -572,7 +572,7 @@ Otteniamo la stima:
     T_c^{B}=2.2690 \pm 0.0001
 \end{equation}
 
-Questa misura è in eccellente accordo con il valore teorico (errore $\sim 0.03$ mK, $< 1\sigma$), ed è la stima più precisa tra i tre metodi utilizzati. 
+Questa misura è in accordo abbastanza decente con il valore teorico (errore $\sim 2\sigma$), anche se si discosta un po' più del previsto, questo potrebbe essere dovuto all'effetto della FSS. 
 
 \begin{figure}[H]
     \centering
@@ -622,7 +622,7 @@ La temperatura del massimo di $C$ presenta il seguente andamento FSS:
 \end{equation}
 Gli errori su $T_{\max}(L)$ sono stimati con bootstrap (1000 iterazioni), analogamente al caso della suscettività. Utilizzando questa relazione, otteniamo:
 \begin{equation}
-    T_c^C = 2.265 \pm 0.004 \quad \chi^2_{\text{red}} = 0.16
+    T_c^C = 2.265 \pm 0.004 \quad \chi^2_{\text{red}} = 0.14
 \end{equation}
 Il valore è in buon accordo con la teoria (errore $\sim 1\sigma$), anche se presenta un errore maggiore rispetto alle altre stime a causa degli errori più grandi sul calore specifico, come visibile dal grafico qui sotto:
 \begin{figure}[H]
@@ -641,11 +641,11 @@ Il valore è in buon accordo con la teoria (errore $\sim 1\sigma$), anche se pre
         \item Valore esatto (Onsager): $T_c = 2.269185...$
         \item Binder crossing: $T_c^B = 2.2690 \pm 0.0001$ (errore $<2\sigma$)
         \item FSS picchi $\chi$: $T_c^{\chi} = 2.270 \pm 0.001 $ ($\chi^2_{\text{red}} = 0.36$)
-        \item FSS picchi $C$: $T_c^C = 2.265 \pm 0.004$ ($\chi^2_{\text{red}} = 0.16$)
+        \item FSS picchi $C$: $T_c^C = 2.265 \pm 0.004$ ($\chi^2_{\text{red}} = 0.14$)
     \end{itemize}
     I tre metodi danno risultati in buon accordo tra loro e con il valore teorico (tutti entro 1-2 $\sigma$). Gli errori sui picchi sono stati stimati con bootstrap non parametrico (1000 iterazioni), che tiene conto della forma non gaussiana dei picchi nella regione critica. I valori dei $\chi^2_{\text{red}}$ confermano che gli errori bootstrap sono realistici.
 
-    \item \textbf{Esponente critico}: $\gamma/\nu = 1.750 \pm 0.005$ (esatto: $1.75$), con $\chi^2_{\text{red}} = 0.86$. L'accordo è eccellente, confermando la validità dell'andamento a legge di potenza $\chi_{\max} \sim L^{\gamma/\nu}$.
+    \item \textbf{Esponente critico}: $\gamma/\nu = 1.750 \pm 0.005$ (esatto: $1.75$), con $\chi^2_{\text{red}} = 1.29$. L'accordo è eccellente, confermando la validità dell'andamento a legge di potenza $\chi_{\max} \sim L^{\gamma/\nu}$.
 
     \item \textbf{Finite Size Scaling}: Il data collapse di $\chi/L^{\gamma/\nu}$ vs $L^{1/\nu}(T-T_c)$ conferma la validità della teoria FSS.
 \end{enumerate}

@@ -3,11 +3,7 @@
 Simulazione numerica della transizione di fase ferromagnetica del modello di Ising 2D usando l'algoritmo di Wolff e analisi di Finite Size Scaling.
 ### ✅ Problemi Risolti
 
-1. **Termalizzazione verificata empiricamente**
-   - Creato programma dedicato ([thermalization_test.c](src/thermalization_test.c)) che genera dati reali di termalizzazione
-   - Grafico con evoluzione di E(t) e m(t) durante 15000 cluster updates
-   - Dimostrato che 10000 steps sono sufficienti (sistema equilibra in ~6000-8000 steps)
-
+1. 
 2. **Metodi per Tc migliorati con Finite Size Scaling**
    - Fit FSS: T_max(L) = Tc + a·L^(-1/ν) per i picchi di χ e C
    - Errori sui picchi stimati con **bootstrap non parametrico** (1000 iterazioni)
@@ -74,15 +70,6 @@ Questo progetto implementa una simulazione Monte Carlo del **modello di Ising 2D
 - **Stimare l'esponente critico** γ/ν tramite scaling della suscettività
 - **Validare la teoria** di Finite Size Scaling tramite data collapse
 - **Confrontare** i risultati numerici con i valori esatti di Onsager
-
-### Risultati Attesi vs Ottenuti
-
-| Quantità | Teorico (Onsager) | Misurato | Accordo |
-|----------|-------------------|----------|---------|
-| Tc (Binder) | 2.26918 | 2.2690 ± 0.0001 | 0.03 mK |
-| Tc (χ FSS) | 2.26918 | 2.2699 ± 0.0014 | < 1σ |
-| Tc (C FSS) | 2.26918 | 2.2652 ± 0.0039 | < 1σ |
-| γ/ν | 1.75 | 1.7498 ± 0.0049 | 0.01% |
 
 ---
 
@@ -351,7 +338,8 @@ Module1/
 │   ├── main.c             # Programma principale (algoritmo Wolff)
 │   ├── geometry.c         # Geometria reticolo con PBC
 │   ├── random.c           # Wrapper RNG PCG32
-│   └── pcg32min.c         # Implementazione PCG32
+│   ── pcg32min.c         # Implementazione PCG32
+│   └── thermalisation_test# Avanzamento temporale di m e E per verificare la termalizzazione
 │
 ├── include/                # Header files (file .h)
 │   ├── geometry.h         # Header geometria
@@ -365,26 +353,21 @@ Module1/
 │   └── L{L}_T{T}.dat      # Dati per ogni (L, T)
 │
 ├── plots/                  # Grafici generati
-│   ├── magnetization.png
-│   ├── susceptibility.png
-│   ├── chi_scaling.png
-│   ├── binder_cumulant.png
-│   ├── fss_collapse.png
-│   └── energy_heat.png
 │
-├── scripts/                # Script Python analisi
-│   └── analyze.py         # Analisi dati e generazione grafici
+├── scripts/                # Script Python
+│   ├── parallel_run.py     # Parallelizzazione e gestione delle simulazioni parallele
+│   └── analyze.py          # Analisi dati e generazione grafici
 │
 ├── paper/                  # Paper LaTeX
-│   └── paper.tex          # Documento scientifico completo
+│   ├── paper.pdf           
+│   └── paper.tex          
 │
 ├── venv/                   # Virtual environment Python (auto-gestito)
 │
 ├── Makefile               # Automazione build/run/analyze
 ├── params.txt             # ⭐ PARAMETRI (modificare qui!)
-├── run_simulations.sh     # Script esecuzione simulazioni
-├── istruzioni.txt         # Documentazione tecnica completa
-└── requirements.txt       # Dipendenze Python
+├── risultati.txt          # Risultati ottenuti
+
 ```
 
 ### Componenti Principali
@@ -625,12 +608,16 @@ for(iter = 0; iter < thermalization; iter++) {
 **Perché è necessaria**:
 - Sistema parte da configurazione ordinata (cold start) o random (hot start)
 - Serve tempo per raggiungere equilibrio termico
-- 10,000 cluster updates sono sufficienti per L ≤ 80
+
+**Termalizzazione verificata empiricamente**
+   - Creato programma dedicato ([thermalization_test.c](src/thermalization_test.c)) che genera dati reali di termalizzazione
+   - Grafico con evoluzione di E(t) e m(t) durante 410000 cluster updates
+   - Dimostrato che 10000 steps sono sufficienti (sistema equilibra in ~1000 steps)
 
 #### Fase di Misurazione
 
 ```c
-// 100,000 cluster updates con misure
+// 400,000 cluster updates con misure
 for(iter = 0; iter < measurements; iter++) {
     // Update cluster
     build_cluster_norec(...);
@@ -661,7 +648,7 @@ binder = 1.0 - meanM4 / (3.0 * meanM2 * meanM2);
 
 ### Grafici Prodotti
 
-Dopo `make analyze`, vengono generati 6 grafici in `plots/`:
+Dopo `make analyze`, vengono generati i grafici in `plots/`:
 
 #### 1. Magnetizzazione vs Temperatura
 
@@ -765,35 +752,26 @@ Esempio output salvato in `risultati.txt`:
 ======================================================================
 RISULTATI ANALISI ISING 2D - ALGORITMO DI WOLFF
 ======================================================================
+Data analisi: 2026-01-17 15:28:59
 Dimensioni L simulate: [40, 60, 80, 100, 120, 140, 160, 180, 200]
-Numero di temperature: 102
+Numero di temperature: 100
 
 ----------------------------------------------------------------------
 TEMPERATURA CRITICA
 ----------------------------------------------------------------------
-Tc teorico (Onsager):        2.26918
-Tc da picchi χ(L):           2.2699 ± 0.0014
-  χ²_red (FSS fit):          0.3661
-Tc da picchi C(L):           2.2652 ± 0.0039
-  χ²_red (FSS fit):          0.1628
-Tc da Binder crossing:       2.2690 ± 0.0001
-Errore Binder vs teorico:    0.03 mK (0.002%)
+Tc teorico (Onsager):          2.26918
+Tc da picchi chi(L):           2.2699 +/- 0.0014
+  chi^2_red (FSS fit):         0.3553
+Tc da picchi C(L):             2.2649 +/- 0.0039
+  chi^2_red (FSS fit):         0.1384
+Tc da Binder crossing:         2.2690 +/- 0.0001
 
 ----------------------------------------------------------------------
 ESPONENTI CRITICI
 ----------------------------------------------------------------------
-γ/ν misurato:                1.7498 ± 0.0049
-γ/ν teorico:                 1.7500
-Errore percentuale:          0.01%
-χ²_red (scaling χ/L^γ/ν):    0.8592
-
-======================================================================
-MIGLIOR STIMA FINALE
-======================================================================
-Tc = 2.2690 ± 0.0001
-γ/ν = 1.7498 ± 0.0049
-Errore Tc: 0.03 mK (0.002%)
-======================================================================
+gamma/nu misurato:                1.7498 +/- 0.0049
+gamma/nu teorico:                 1.7500
+chi^2_red (collapse chi/L^gamma/nu):   1.2905
 ```
 
 ---
