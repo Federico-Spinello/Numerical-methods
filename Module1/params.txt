@@ -1,8 +1,8 @@
-# Test parallelizzazione
+# parallelizzazione
 L_VALUES = 40,60
 T_MIN = 2.1
 T_MAX = 2.4
-N_TEMPS = 50
+N_TEMPS = 100
 THERMALIZATION = 10000
 MEASUREMENTS = 400000
 DATA_DIR = data

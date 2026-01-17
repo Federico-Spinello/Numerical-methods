@@ -59,52 +59,76 @@ JOB_TIMEOUT = 7200
 # UTILITA'
 # ============================================================================
 
+from pathlib import Path
+
 def parse_params():
     """
-    Legge i parametri dal file params.txt.
+    Legge i parametri dal file params.txt esistente e li converte nei tipi corretti.
 
     Returns:
         dict: dizionario con i parametri
     """
-    params = {
-        'L_VALUES': [40, 60, 80, 100],
-        'T_MIN': 2.1,
-        'T_MAX': 2.4,
-        'N_TEMPS': 60,
-        'THERMALIZATION': 10000,
-        'MEASUREMENTS': 400000,
-        'DATA_DIR': str(DATA_DIR)
-    }
 
-    if not PARAMS_FILE.exists():
-        print(f"ATTENZIONE: {PARAMS_FILE} non trovato, uso valori di default")
-        return params
+    # Percorso del file dei parametri
+    PARAMS_FILE = PROJECT_ROOT / "params.txt"
 
+    # Dizionario dove memorizzare i parametri
+    params = {}
+
+    # Apro il file in lettura
     with open(PARAMS_FILE, 'r') as f:
         for line in f:
-            line = line.strip()
-            if not line or line.startswith('#'):
+            # Rimuovo spazi iniziali e finali
+            line_stripped = line.strip()
+
+            # Ignoro righe vuote o commenti
+            if line_stripped == "" or line_stripped.startswith("#"):
                 continue
-            if '=' in line:
-                key, value = line.split('=', 1)
-                key = key.strip()
-                value = value.strip()
 
-                if key == 'L_VALUES':
-                    # Parse lista: "40,60,80,100" -> [40, 60, 80, 100]
-                    params[key] = [int(x.strip()) for x in value.split(',')]
-                elif key in ('T_MIN', 'T_MAX'):
-                    params[key] = float(value)
-                elif key in ('N_TEMPS', 'THERMALIZATION', 'MEASUREMENTS'):
-                    params[key] = int(value)
-                elif key == 'DATA_DIR':
-                    # Converti a path assoluto se relativo
-                    data_path = Path(value)
-                    if not data_path.is_absolute():
-                        data_path = PROJECT_ROOT / data_path
-                    params[key] = str(data_path.resolve())
+            # Controllo che la riga contenga '='
+            if '=' not in line_stripped:
+                print(f"ATTENZIONE: riga malformata ignorata: {line_stripped}")
+                continue
 
+            # Separazione chiave-valore
+            key_raw, value_raw = line_stripped.split('=', 1)
+
+            # Pulizia spazi
+            key = key_raw.strip()
+            value = value_raw.strip()
+
+            # Conversione dei valori in base al tipo atteso
+            if key == 'L_VALUES':
+                # Lista di interi separati da virgola
+                values_list = value.split(',')
+                int_list = []
+                for v in values_list:
+                    v_clean = v.strip()
+                    int_list.append(int(v_clean))
+                params[key] = int_list
+
+            elif key in ('T_MIN', 'T_MAX'):
+                # Float
+                params[key] = float(value)
+
+            elif key in ('N_TEMPS', 'THERMALIZATION', 'MEASUREMENTS'):
+                # Interi
+                params[key] = int(value)
+
+            elif key == 'DATA_DIR':
+                # Percorso, convertito in path assoluto
+                data_path = Path(value)
+                if not data_path.is_absolute():
+                    data_path = PROJECT_ROOT / data_path
+                params[key] = str(data_path.resolve())
+
+            else:
+                # Chiave sconosciuta
+                print(f"ATTENZIONE: chiave sconosciuta '{key}' ignorata")
+
+    # Ritorno il dizionario con tutti i parametri
     return params
+
 
 
 def generate_temperature_grid(T_min, T_max, n_temps):

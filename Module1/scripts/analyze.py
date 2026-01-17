@@ -534,9 +534,6 @@ def calculate_binder_crossing(data):
     Tc_binder = T_range[idx_min]
     std_min = std_devs[idx_min]
 
-    # Nota: il valore U* al crossing è universale (≈ 1.17 per Ising 2D)
-    # U_star = np.mean(U_values_at_T[idx_min])
-
     # -------------------------------------------------------------------------
     # STEP 6: Stima l'errore dalla larghezza del minimo
     # -------------------------------------------------------------------------
@@ -700,11 +697,6 @@ def plot_energy_heat(data):
         ax2.plot(data[L]['T'], data[L]['C'],
                  '-', label=f'L={L}', color=color,
                  markersize=5, linewidth=1.5, zorder=3)
-        # Banda di errore
-        # ax2.fill_between(data[L]['T'],
-        #                  data[L]['C'] - data[L]['err_C'],
-        #                  data[L]['C'] + data[L]['err_C'],
-        #                  color=color, alpha=0.2, zorder=1)
 
         # Trova il picco del calore specifico per questo L
         idx_max = np.argmax(data[L]['C'])
@@ -872,8 +864,6 @@ def plot_thermalization():
     Legge dati reali da data/thermalization_data.dat se disponibili
     (generati con 'make thermalization'), altrimenti usa dati simulati.
     """
-    import numpy as np
-    from pathlib import Path
 
     therm_data_file = DATA_DIR / "thermalization_data.dat"
 
