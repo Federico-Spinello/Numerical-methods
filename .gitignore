@@ -1,3 +1,79 @@
-# Cartelle locali di Claude / AI tools
-Module1/.claude/
-Module2_advection_convection/.claude/
+# ======================================
+# Cartelle Claude / AI tools (ovunque)
+# ======================================
+**/.claude/
+
+# ======================================
+# File di compilazione LaTeX
+# ======================================
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.synctex(busy)
+*.bbl
+*.blg
+*.bcf
+*.run.xml
+*.nav
+*.snm
+*.vrb
+*.idx
+*.ilg
+*.ind
+
+# ======================================
+# Compilazione C/C++
+# ======================================
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.exe
+
+# Cartelle build (eseguibili compilati)
+**/build/
+**/bin/
+
+# ======================================
+# Python
+# ======================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+ENV/
+.env
+
+# ======================================
+# Editor / IDE
+# ======================================
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+*.sublime-*
+
+# ======================================
+# OS generated
+# ======================================
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+
+# ======================================
+# Dati temporanei / output
+# ======================================
+*.dat
+*.tmp

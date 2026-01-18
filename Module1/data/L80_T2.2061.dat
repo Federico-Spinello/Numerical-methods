@@ -1,5 +1,0 @@
-# Ising 2D - Algoritmo di Wolff
-# L = 80, T = 2.206061, beta = 0.453297
-# thermalization = 10000, measurements = 400000
-# Colonne: T  m  err_m  E  err_E  chi  err_chi  C  err_C  binder  err_binder
-2.206061 0.77624625 0.00007116 -1.53782402 0.00005282 5.87592880 0.29194735 1.46764588 0.09823544 1.01192668 0.00047570
