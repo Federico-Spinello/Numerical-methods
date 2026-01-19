@@ -349,7 +349,7 @@ In questo caso sono stati eseguiti 10000 cluster update, il motivo è puramente 
 
 \begin{enumerate}
 
-    \item È stato osservato che l'energia raggiunge un plateau stazionario dopo $\sim 1000$ aggiornamenti dei cluster, con fluttuazioni statistiche attorno al valore medio.
+    \item È stato osservato che l'energia raggiunge un equilibrio dopo $\sim 1000$ aggiornamenti dei cluster, con fluttuazioni statistiche attorno al valore medio.
 
     \item La magnetizzazione, invece, si stabilizzava molto più velocemente.
 
@@ -359,9 +359,16 @@ In questo caso sono stati eseguiti 10000 cluster update, il motivo è puramente 
 \begin{figure}[H]
     \centering
     \includegraphics[width=\columnwidth]{../plots/thermalization.png}
-    \includegraphics[width=\columnwidth]{../plots/thermalization_zoom.png}
+    \includegraphics[width=\columnwidth]{../plots/thermalization_zoom_good.png}
     \caption{Esempio di termalizzazione per $L=200$ a $T=2.4$. Le regioni evidenziate mostrano la fase di termalizzazione (primi 10000 steps, in rosso) e la fase di misura in equilibrio (steps successivi, in verde). Dopo $\sim 1000$ (linea verticale viola) step l'energia ha raggiunto un regime stazionario, la magnetizzazione, invece, lo raggiunge molto prima. In basso uno zoom delle prime 15000 misurazioni}
     \label{fig:therm}
+\end{figure}
+
+È stato anche testata la condizione iniziale "hot", dove, inizialmente, ogni particella aveva spin random. Quello che è stato osservato è che, come atteso, la termalizzazione richiedeva molto più tempo rispetto alla partenza "cold". Nonostante questo, la termalizzazione veniva comunque raggiunta entro i 10000 cluster updates, come è visibile nel grafico \ref{}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\columnwidth]{../plots/thermalization_zoom.png}
+    \caption{Differenza di tempo di termalizzazione per le condizioni di partenza cold (blu) e hot (rosso).}
 \end{figure}
 
 \paragraph{Autocorrelazione e dimensione dei blocchi}

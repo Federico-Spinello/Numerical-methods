@@ -990,12 +990,9 @@ def plot_thermalization():
     L_value = int(params.get('THERM_L', 100))
     T_value = float(params.get('THERM_T', 2.269))
     thermalization_steps = int(params.get('THERMALIZATION', 10000))
+    thermalization_steps_hot = int(params.get('THERMALIZATION_HOT', 4000))
 
-    print(f"  -> Parametri da params.txt: L={L_value}, T={T_value}, THERMALIZATION={thermalization_steps}")
-
-    # Controlla se ci sono dati reali
-    has_cold = therm_cold_file.exists()
-    has_hot = therm_hot_file.exists()
+    print(f"  -> Parametri da params.txt: L={L_value}, T={T_value}, THERMALIZATION={thermalization_steps}, THERMALIZATION_HOT={thermalization_steps_hot}")
 
     print("  -> Caricamento dati cold start da thermalization_cold.dat")
     data_cold = np.loadtxt(therm_cold_file, comments='#')
@@ -1044,7 +1041,7 @@ def plot_thermalization():
     ax1.set_ylabel('Energia per spin $E/N$', fontsize=12)
     ax1.set_title(f'Termalizzazione: Evoluzione dell\'Energia ($L = {L_value}$, $T = {T_value}$)',
                   fontsize=13, pad=10)
-    ax1.legend(fontsize=9, loc='upper right')
+    ax1.legend(fontsize=9, loc='lower right')
     ax1.grid(True, alpha=0.3)
     ax1.set_xlim(0, n_steps)
 
@@ -1098,7 +1095,7 @@ def plot_thermalization():
     ax1.plot(steps_cold_zoom, E_cold_zoom, 'b-', linewidth=0.8, alpha=0.8,
              label='Cold Start', zorder=3)
     ax1.plot(steps_hot_zoom, E_hot_zoom, 'r-', linewidth=0.8, alpha=0.8,
-             label='Hot Start', zorder=3)
+             label=f'Hot Start ({n_steps_hot} steps)', zorder=3)
     ax1.axhline(E_mean, color='black', linestyle='--', linewidth=1.5,
                 label=f'Media equilibrio: {E_mean:.3f}', zorder=4)
     ax1.axvline(1000, color='magenta', linestyle=':', linewidth=1.5, label='1000 steps', zorder=5)
@@ -1121,7 +1118,7 @@ def plot_thermalization():
     ax2.plot(steps_cold_zoom, m_cold_zoom, 'b-', linewidth=0.8, alpha=0.8,
              label='Cold Start', zorder=3)
     ax2.plot(steps_hot_zoom, m_hot_zoom, 'r-', linewidth=0.8, alpha=0.8,
-             label='Hot Start', zorder=3)
+             label=f'Hot Start ({n_steps_hot} steps)', zorder=3)
     ax2.axhline(m_mean, color='black', linestyle='--', linewidth=1.5,
                 label=f'Media equilibrio: {m_mean:.3f}', zorder=4)
     ax2.axvline(thermalization_steps, color='orange', linestyle=':', linewidth=1.5,

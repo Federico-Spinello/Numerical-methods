@@ -24,7 +24,7 @@
 #define PARAMS_FILE "params.txt"
 
 /* Funzione per leggere parametri da params.txt */
-static int read_params(int *L, double *T, int *nsteps) {
+static int read_params(int *L, double *T, int *nsteps_cold, int *nsteps_hot) {
     FILE *fp = fopen(PARAMS_FILE, "r");
     if (!fp) {
         fprintf(stderr, "ERRORE: impossibile aprire %s\n", PARAMS_FILE);
@@ -32,7 +32,12 @@ static int read_params(int *L, double *T, int *nsteps) {
     }
 
     char line[256];
-    int found_L = 0, found_T = 0, found_N = 0;
+    int found_L = 0, found_T = 0;
+    int found_therm = 0, found_meas = 0, found_hot = 0;
+
+    // Valori default
+    *nsteps_cold = 410000;
+    *nsteps_hot = 10000;
 
     while (fgets(line, sizeof(line), fp)) {
         // Salta commenti e righe vuote
@@ -56,20 +61,55 @@ static int read_params(int *L, double *T, int *nsteps) {
                 found_T = 1;
             }
         }
-        else if (strstr(line, "THERM_NSTEPS") && strstr(line, "=")) {
+        else if (strstr(line, "THERMALIZATION_HOT") && strstr(line, "=")) {
             char *eq = strchr(line, '=');
             if (eq) {
-                *nsteps = atoi(eq + 1);
-                found_N = 1;
+                *nsteps_hot = atoi(eq + 1);
+                found_hot = 1;
+            }
+        }
+        else if (strstr(line, "THERMALIZATION") && strstr(line, "=") && !strstr(line, "HOT")) {
+            char *eq = strchr(line, '=');
+            if (eq) {
+                found_therm = 1;
+                // nsteps_cold = THERMALIZATION + MEASUREMENTS
+            }
+        }
+        else if (strstr(line, "MEASUREMENTS") && strstr(line, "=")) {
+            char *eq = strchr(line, '=');
+            if (eq) {
+                found_meas = 1;
             }
         }
     }
 
+    // Rileggi per calcolare nsteps_cold = THERMALIZATION + MEASUREMENTS
+    rewind(fp);
+    int therm_val = 10000, meas_val = 400000;
+    while (fgets(line, sizeof(line), fp)) {
+        if (line[0] == '#' || line[0] == '\n') continue;
+        line[strcspn(line, "\n")] = 0;
+
+        if (strstr(line, "THERMALIZATION") && strstr(line, "=") && !strstr(line, "HOT")) {
+            char *eq = strchr(line, '=');
+            if (eq) therm_val = atoi(eq + 1);
+        }
+        else if (strstr(line, "MEASUREMENTS") && strstr(line, "=")) {
+            char *eq = strchr(line, '=');
+            if (eq) meas_val = atoi(eq + 1);
+        }
+    }
+    *nsteps_cold = therm_val + meas_val;
+
     fclose(fp);
 
-    if (!found_L || !found_T || !found_N) {
-        fprintf(stderr, "ERRORE: parametri THERM_L, THERM_T, THERM_NSTEPS non trovati in %s\n", PARAMS_FILE);
+    if (!found_L || !found_T) {
+        fprintf(stderr, "ERRORE: parametri THERM_L, THERM_T non trovati in %s\n", PARAMS_FILE);
         return 0;
+    }
+
+    if (!found_hot) {
+        printf("NOTA: THERMALIZATION_HOT non trovato, uso default %d\n", *nsteps_hot);
     }
 
     return 1;
@@ -236,20 +276,15 @@ static void run_thermalization(int L, double T, int nsteps, int hot_start, const
 
 int main(void) {
     // Leggi parametri da params.txt
-    int L, nsteps;
+    int L, nsteps_cold, nsteps_hot;
     double T;
 
-    if (!read_params(&L, &T, &nsteps)) {
+    if (!read_params(&L, &T, &nsteps_cold, &nsteps_hot)) {
         fprintf(stderr, "ERRORE: impossibile leggere parametri da %s\n", PARAMS_FILE);
         return 1;
     }
 
     long int volume = (long int)L * (long int)L;
-
-    // Cold start: 410000 steps (per grafico completo con zone rosse/verdi)
-    // Hot start: usa nsteps da params.txt (per grafico zoom overlay)
-    int nsteps_cold = 410000;
-    int nsteps_hot = nsteps;  // tipicamente 15000
 
     printf("========================================\n");
     printf("STUDIO TERMALIZZAZIONE\n");
@@ -258,8 +293,8 @@ int main(void) {
     printf("  L = %d\n", L);
     printf("  T = %.4f\n", T);
     printf("  Volume = %ld\n", volume);
-    printf("  Steps COLD: %d (per grafico completo)\n", nsteps_cold);
-    printf("  Steps HOT:  %d (per grafico zoom)\n", nsteps_hot);
+    printf("  Steps COLD: %d (THERMALIZATION + MEASUREMENTS)\n", nsteps_cold);
+    printf("  Steps HOT:  %d (THERMALIZATION_HOT)\n", nsteps_hot);
     printf("  Output COLD: %s\n", OUTPUT_FILE_COLD);
     printf("  Output HOT:  %s\n\n", OUTPUT_FILE_HOT);
 
