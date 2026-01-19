@@ -1072,7 +1072,7 @@ def plot_thermalization():
     # ========================================================================
     # GRAFICO 2: thermalization_zoom.png - Zoom con OVERLAY cold/hot start
     # ========================================================================
-    n_zoom = thermalization_steps
+    n_zoom = min(thermalization_steps,n_steps_hot)
 
     # Prendi i primi n_zoom steps per entrambi
     steps_cold_zoom = steps_cold[:n_zoom]
@@ -1080,27 +1080,22 @@ def plot_thermalization():
     m_cold_zoom = m_cold[:n_zoom]
 
     # Per hot start, usa tutti i dati disponibili (fino a n_zoom)
-    n_hot_available = min(n_steps_hot, n_zoom)
-    steps_hot_zoom = steps_hot[:n_hot_available]
-    E_hot_zoom = E_hot[:n_hot_available]
-    m_hot_zoom = m_hot[:n_hot_available]
+    steps_hot_zoom = steps_hot[:n_zoom]
+    E_hot_zoom = E_hot[:n_zoom]
+    m_hot_zoom = m_hot[:n_zoom]
 
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
 
     # --- Energia zoom con overlay ---
-    ax1.axvspan(0, thermalization_steps, alpha=0.2, color='red',
-                label=f'Termalizzazione ({thermalization_steps} steps)', zorder=1)
-    ax1.axvspan(thermalization_steps, n_zoom, alpha=0.2, color='green',
-                label='Misure (equilibrio)', zorder=1)
     ax1.plot(steps_cold_zoom, E_cold_zoom, 'b-', linewidth=0.8, alpha=0.8,
              label='Cold Start', zorder=3)
     ax1.plot(steps_hot_zoom, E_hot_zoom, 'r-', linewidth=0.8, alpha=0.8,
-             label=f'Hot Start ({n_steps_hot} steps)', zorder=3)
+             label=f'Hot Start', zorder=3)
     ax1.axhline(E_mean, color='black', linestyle='--', linewidth=1.5,
-                label=f'Media equilibrio: {E_mean:.3f}', zorder=4)
-    ax1.axvline(1000, color='magenta', linestyle=':', linewidth=1.5, label='1000 steps', zorder=5)
-    ax1.axvline(thermalization_steps, color='orange', linestyle=':', linewidth=1.5,
-                label=f'{thermalization_steps} steps', zorder=5)
+                label=f'Media equilibrio (cold): {E_mean:.3f}', zorder=4)
+    ax1.axvline(250, color='cyan', linestyle=':', linewidth=1.5, label='1000 steps', zorder=5)
+    ax1.axvline(1750, color='orange', linestyle=':', linewidth=1.5,
+                label=f'{1750} steps', zorder=5)
 
     ax1.set_xlabel('Cluster updates', fontsize=12)
     ax1.set_ylabel('Energia per spin $E/N$', fontsize=12)
@@ -1111,18 +1106,13 @@ def plot_thermalization():
     ax1.set_xlim(0, n_zoom)
 
     # --- Magnetizzazione zoom con overlay ---
-    ax2.axvspan(0, thermalization_steps, alpha=0.2, color='red',
-                label=f'Termalizzazione ({thermalization_steps} steps)', zorder=1)
-    ax2.axvspan(thermalization_steps, n_zoom, alpha=0.2, color='green',
-                label='Misure (equilibrio)', zorder=1)
     ax2.plot(steps_cold_zoom, m_cold_zoom, 'b-', linewidth=0.8, alpha=0.8,
              label='Cold Start', zorder=3)
     ax2.plot(steps_hot_zoom, m_hot_zoom, 'r-', linewidth=0.8, alpha=0.8,
-             label=f'Hot Start ({n_steps_hot} steps)', zorder=3)
+             label=f'Hot Start', zorder=3)
     ax2.axhline(m_mean, color='black', linestyle='--', linewidth=1.5,
-                label=f'Media equilibrio: {m_mean:.3f}', zorder=4)
-    ax2.axvline(thermalization_steps, color='orange', linestyle=':', linewidth=1.5,
-                label=f'{thermalization_steps} steps', zorder=5)
+                label=f'Media equilibrio (cold): {m_mean:.3f}', zorder=4)
+
 
     ax2.set_xlabel('Cluster updates', fontsize=12)
     ax2.set_ylabel('Magnetizzazione $|m|$', fontsize=12)

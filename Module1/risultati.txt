@@ -1,7 +1,7 @@
 ======================================================================
 RISULTATI ANALISI ISING 2D - ALGORITMO DI WOLFF
 ======================================================================
-Data analisi: 2026-01-19 11:27:29
+Data analisi: 2026-01-19 11:49:41
 Dimensioni L simulate: [40, 60, 80, 100, 120, 140, 160, 180, 200]
 Numero di temperature: 100
 
@@ -9,10 +9,10 @@ Numero di temperature: 100
 TEMPERATURA CRITICA
 ----------------------------------------------------------------------
 Tc teorico (Onsager):          2.26918
-Tc da picchi chi(L):           2.2698 +/- 0.0014
-  chi^2_red (FSS fit):         0.3637
+Tc da picchi chi(L):           2.2699 +/- 0.0014
+  chi^2_red (FSS fit):         0.3650
 Tc da picchi C(L):             2.2650 +/- 0.0040
-  chi^2_red (FSS fit):         0.1363
+  chi^2_red (FSS fit):         0.1379
 Tc da Binder crossing:         2.2690 +/- 0.0001
 
 ----------------------------------------------------------------------
