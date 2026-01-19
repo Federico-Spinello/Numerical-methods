@@ -1,6 +1,6 @@
 # Metodi Numerici per la Fisica
 
-Progetti sviluppati per l'esame di **Metodi Numerici per la Fisica** presso l'Universita degli Studi di Torino.
+Progetti sviluppati per l'esame di **Metodi Numerici per la Fisica**.
 
 ---
 
@@ -19,10 +19,6 @@ Simulazione Monte Carlo del **modello di Ising 2D** per lo studio della transizi
 - Algoritmo di Wolff (cluster algorithm) per ridurre il critical slowing down
 - Analisi Finite Size Scaling con data collapse
 - Bootstrap non parametrico per stima errori
-
-**Risultati principali:**
-- Tc = 2.2690 +/- 0.0001 (teorico: 2.26918)
-- gamma/nu = 1.7498 +/- 0.0049 (teorico: 1.75)
 
 ---
 
