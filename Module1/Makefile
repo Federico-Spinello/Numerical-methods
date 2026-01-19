@@ -132,7 +132,7 @@ debug: clean $(EXECUTABLE)
 # Test termalizzazione
 # ============================================================================
 
-# Compila ed esegue test termalizzazione (genera dati reali E(t), m(t))
+# Compila ed esegue test termalizzazione (genera dati reali E(t), m(t) per cold e hot start)
 thermalization: $(BIN_DIR)
 	@echo "=== COMPILAZIONE TEST TERMALIZZAZIONE ==="
 	$(CC) $(CFLAGS) -o $(BIN_DIR)/thermalization_test \
@@ -147,7 +147,9 @@ thermalization: $(BIN_DIR)
 	@mkdir -p $(DATA_DIR)
 	$(BIN_DIR)/thermalization_test
 	@echo ""
-	@echo "✓ Test completato. Dati salvati in $(DATA_DIR)/thermalization_data.dat"
+	@echo "✓ Test completato. Dati salvati in:"
+	@echo "  - $(DATA_DIR)/thermalization_cold.dat (cold start)"
+	@echo "  - $(DATA_DIR)/thermalization_hot.dat (hot start)"
 
 # ============================================================================
 # LaTeX Paper

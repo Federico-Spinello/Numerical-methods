@@ -6,3 +6,8 @@ N_TEMPS = 100
 THERMALIZATION = 10000
 MEASUREMENTS = 400000
 DATA_DIR = data
+
+# parametri test termalizzazione
+THERM_L = 100
+THERM_T = 2.4
+THERM_NSTEPS = 4000

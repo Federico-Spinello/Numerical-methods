@@ -966,15 +966,24 @@ def main():
     # Salva risultati in file
     save_results(results)
 
+        # Genera anche il grafico di termalizzazione
+    print("\n" + "="*70)
+    print("  GRAFICO TERMALIZZAZIONE")
+    print("="*70)
+    plot_thermalization()
+
 def plot_thermalization():
     """
-    Genera grafico della termalizzazione e zoom.
+    Genera grafici della termalizzazione:
+    1. thermalization.png - Grafico completo cold start (410000 steps) con zone rosse/verdi
+    2. thermalization_zoom.png - Zoom sui primi 15000 steps con overlay cold/hot start
 
-    Legge dati reali da data/thermalization_data.dat se disponibili
-    (generati con 'make thermalization'), altrimenti usa dati simulati.
+    Legge dati reali da data/thermalization_cold.dat e data/thermalization_hot.dat
+    se disponibili (generati con 'make thermalization').
     """
 
-    therm_data_file = DATA_DIR / "thermalization_data.dat"
+    therm_cold_file = DATA_DIR / "thermalization_cold.dat"
+    therm_hot_file = DATA_DIR / "thermalization_hot.dat"
 
     # Leggi parametri da params.txt
     params = load_params()
@@ -985,49 +994,37 @@ def plot_thermalization():
     print(f"  -> Parametri da params.txt: L={L_value}, T={T_value}, THERMALIZATION={thermalization_steps}")
 
     # Controlla se ci sono dati reali
-    if therm_data_file.exists():
-        print("  -> Usando dati reali da thermalization_data.dat")
-        try:
-            # Carica dati: step, E, m
-            data = np.loadtxt(therm_data_file, comments='#')
-            steps = data[:, 0].astype(int)
-            E = data[:, 1]
-            m = data[:, 2]
-            n_steps = len(steps)
-            is_real_data = True
-        except Exception as e:
-            print(f"  ! Errore lettura dati reali: {e}")
-            print("  -> Usando dati simulati")
-            is_real_data = False
-    else:
-        print("  -> Dati reali non trovati (esegui 'make thermalization' per generarli)")
-        print("  -> Usando dati simulati basati su comportamento tipico")
-        is_real_data = False
+    has_cold = therm_cold_file.exists()
+    has_hot = therm_hot_file.exists()
 
-    # Se non ci sono dati reali, genera dati simulati
-    if not is_real_data:
-        # Genera dati simulati per dimostrazione
-        n_steps = 410000  # Simula dati completi
-        steps = np.arange(n_steps)
+    print("  -> Caricamento dati cold start da thermalization_cold.dat")
+    data_cold = np.loadtxt(therm_cold_file, comments='#')
+    steps_cold = data_cold[:, 0].astype(int)
+    E_cold = data_cold[:, 1]
+    m_cold = data_cold[:, 2]
+    n_steps_cold = len(steps_cold)
+ 
 
-        # Energia: parte da ~-1.6, raggiunge equilibrio ~-1.205 dopo termalizzazione
-        E = -1.6 + 0.4 * (1 - np.exp(-steps/500))
-        E += 0.013 * np.random.randn(n_steps)  # aggiungi rumore
+    print("  -> Caricamento dati hot start da thermalization_hot.dat")
+    data_hot = np.loadtxt(therm_hot_file, comments='#')
+    steps_hot = data_hot[:, 0].astype(int)
+    E_hot = data_hot[:, 1]
+    m_hot = data_hot[:, 2]
+    n_steps_hot = len(steps_hot)
 
-        # Magnetizzazione: parte alta ~0.8, scende a ~0.05 (vicino a Tc)
-        m = 0.8 * np.exp(-steps/200) + 0.05
-        m += 0.038 * np.random.randn(n_steps)  # aggiungi rumore
-        m = np.abs(m)  # assicurati sia positiva
+    # ========================================================================
+    # GRAFICO 1: thermalization.png - Solo COLD START, completo (410000 steps)
+    # ========================================================================
+    n_steps = n_steps_cold
 
-    # Calcola statistiche sulla fase di equilibrio
-    E_eq = E[thermalization_steps:]
-    m_eq = m[thermalization_steps:]
+    # Calcola statistiche sulla fase di equilibrio (dopo termalizzazione)
+    E_eq = E_cold[thermalization_steps:]
+    m_eq = m_cold[thermalization_steps:]
     E_mean = np.mean(E_eq)
     E_std = np.std(E_eq)
     m_mean = np.mean(m_eq)
     m_std = np.std(m_eq)
 
-    # ====== GRAFICO COMPLETO ======
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
 
     # --- Energia ---
@@ -1035,7 +1032,7 @@ def plot_thermalization():
                 label=f'Termalizzazione ({thermalization_steps} steps)', zorder=1)
     ax1.axvspan(thermalization_steps, n_steps, alpha=0.3, color='green',
                 label='Misure (equilibrio)', zorder=1)
-    ax1.plot(steps, E, 'b-', linewidth=0.5, zorder=2)
+    ax1.plot(steps_cold, E_cold, 'b-', linewidth=0.5, zorder=2)
     ax1.axhspan(E_mean - E_std, E_mean + E_std,
                 xmin=(thermalization_steps/n_steps), xmax=1.0,
                 color='gray', alpha=0.3, label=r'$\pm 1\sigma$', zorder=3)
@@ -1056,7 +1053,7 @@ def plot_thermalization():
                 label=f'Termalizzazione ({thermalization_steps} steps)', zorder=1)
     ax2.axvspan(thermalization_steps, n_steps, alpha=0.3, color='green',
                 label='Misure (equilibrio)', zorder=1)
-    ax2.plot(steps, m, 'r-', linewidth=0.5, zorder=2)
+    ax2.plot(steps_cold, m_cold, 'r-', linewidth=0.5, zorder=2)
     ax2.axhspan(m_mean - m_std, m_mean + m_std,
                 xmin=(thermalization_steps/n_steps), xmax=1.0,
                 color='gray', alpha=0.3, label=r'$\pm 1\sigma$', zorder=3)
@@ -1075,52 +1072,64 @@ def plot_thermalization():
     print("  Grafico thermalization.png salvato")
     plt.close()
 
-    # ====== GRAFICO ZOOM (0-15000 steps) ======
-    n_zoom = 15000
-    steps_zoom = steps[:n_zoom]
-    E_zoom = E[:n_zoom]
-    m_zoom = m[:n_zoom]
+    # ========================================================================
+    # GRAFICO 2: thermalization_zoom.png - Zoom con OVERLAY cold/hot start
+    # ========================================================================
+    n_zoom = thermalization_steps
+
+    # Prendi i primi n_zoom steps per entrambi
+    steps_cold_zoom = steps_cold[:n_zoom]
+    E_cold_zoom = E_cold[:n_zoom]
+    m_cold_zoom = m_cold[:n_zoom]
+
+    # Per hot start, usa tutti i dati disponibili (fino a n_zoom)
+    n_hot_available = min(n_steps_hot, n_zoom)
+    steps_hot_zoom = steps_hot[:n_hot_available]
+    E_hot_zoom = E_hot[:n_hot_available]
+    m_hot_zoom = m_hot[:n_hot_available]
 
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
 
-    # --- Energia zoom ---
-    ax1.axvspan(0, thermalization_steps, alpha=0.3, color='red',
+    # --- Energia zoom con overlay ---
+    ax1.axvspan(0, thermalization_steps, alpha=0.2, color='red',
                 label=f'Termalizzazione ({thermalization_steps} steps)', zorder=1)
-    ax1.axvspan(thermalization_steps, n_zoom, alpha=0.3, color='green',
+    ax1.axvspan(thermalization_steps, n_zoom, alpha=0.2, color='green',
                 label='Misure (equilibrio)', zorder=1)
-    ax1.plot(steps_zoom, E_zoom, 'b-', linewidth=0.5, zorder=2)
-    ax1.axhspan(E_mean - E_std, E_mean + E_std,
-                xmin=(thermalization_steps/n_zoom), xmax=1.0,
-                color='gray', alpha=0.3, label=r'$\pm 1\sigma$', zorder=3)
+    ax1.plot(steps_cold_zoom, E_cold_zoom, 'b-', linewidth=0.8, alpha=0.8,
+             label='Cold Start', zorder=3)
+    ax1.plot(steps_hot_zoom, E_hot_zoom, 'r-', linewidth=0.8, alpha=0.8,
+             label='Hot Start', zorder=3)
     ax1.axhline(E_mean, color='black', linestyle='--', linewidth=1.5,
-                label=f'Media equilibrio: {E_mean:.3f} $\\pm$ {E_std:.3f}', zorder=4)
+                label=f'Media equilibrio: {E_mean:.3f}', zorder=4)
     ax1.axvline(1000, color='magenta', linestyle=':', linewidth=1.5, label='1000 steps', zorder=5)
-    ax1.axvline(thermalization_steps, color='orange', linestyle=':', linewidth=1.5, label='10000 steps', zorder=5)
+    ax1.axvline(thermalization_steps, color='orange', linestyle=':', linewidth=1.5,
+                label=f'{thermalization_steps} steps', zorder=5)
 
     ax1.set_xlabel('Cluster updates', fontsize=12)
     ax1.set_ylabel('Energia per spin $E/N$', fontsize=12)
-    ax1.set_title(f'Termalizzazione (Zoom: 0-{n_zoom} steps) - Energia ($L = {L_value}$, $T = {T_value}$)',
+    ax1.set_title(f'Termalizzazione (Zoom 0-{n_zoom}): Cold vs Hot Start ($L = {L_value}$, $T = {T_value}$)',
                   fontsize=13, pad=10)
     ax1.legend(fontsize=9, loc='upper right')
     ax1.grid(True, alpha=0.3)
     ax1.set_xlim(0, n_zoom)
 
-    # --- Magnetizzazione zoom ---
-    ax2.axvspan(0, thermalization_steps, alpha=0.3, color='red',
+    # --- Magnetizzazione zoom con overlay ---
+    ax2.axvspan(0, thermalization_steps, alpha=0.2, color='red',
                 label=f'Termalizzazione ({thermalization_steps} steps)', zorder=1)
-    ax2.axvspan(thermalization_steps, n_zoom, alpha=0.3, color='green',
+    ax2.axvspan(thermalization_steps, n_zoom, alpha=0.2, color='green',
                 label='Misure (equilibrio)', zorder=1)
-    ax2.plot(steps_zoom, m_zoom, 'r-', linewidth=0.5, zorder=2)
-    ax2.axhspan(m_mean - m_std, m_mean + m_std,
-                xmin=(thermalization_steps/n_zoom), xmax=1.0,
-                color='gray', alpha=0.3, label=r'$\pm 1\sigma$', zorder=3)
+    ax2.plot(steps_cold_zoom, m_cold_zoom, 'b-', linewidth=0.8, alpha=0.8,
+             label='Cold Start', zorder=3)
+    ax2.plot(steps_hot_zoom, m_hot_zoom, 'r-', linewidth=0.8, alpha=0.8,
+             label='Hot Start', zorder=3)
     ax2.axhline(m_mean, color='black', linestyle='--', linewidth=1.5,
-                label=f'Media equilibrio: {m_mean:.3f} $\\pm$ {m_std:.3f}', zorder=4)
-    ax2.axvline(thermalization_steps, color='orange', linestyle=':', linewidth=1.5, label='10000 steps', zorder=5)
+                label=f'Media equilibrio: {m_mean:.3f}', zorder=4)
+    ax2.axvline(thermalization_steps, color='orange', linestyle=':', linewidth=1.5,
+                label=f'{thermalization_steps} steps', zorder=5)
 
     ax2.set_xlabel('Cluster updates', fontsize=12)
     ax2.set_ylabel('Magnetizzazione $|m|$', fontsize=12)
-    ax2.set_title(f'Termalizzazione (Zoom: 0-{n_zoom} steps) - Magnetizzazione', fontsize=13, pad=10)
+    ax2.set_title('Termalizzazione (Zoom): Convergenza Cold vs Hot Start', fontsize=13, pad=10)
     ax2.legend(fontsize=9, loc='upper right')
     ax2.grid(True, alpha=0.3)
     ax2.set_xlim(0, n_zoom)
@@ -1129,17 +1138,6 @@ def plot_thermalization():
     plt.savefig(PLOTS_DIR / 'thermalization_zoom.png', dpi=300, bbox_inches='tight')
     print("  Grafico thermalization_zoom.png salvato")
     plt.close()
-
-    # Stampa statistiche
-    data_type_str = "dati reali" if is_real_data else "dati simulati"
-    print(f"\n  Statistiche termalizzazione ({data_type_str}):")
-    print(f"    Energia a equilibrio ({thermalization_steps}-{n_steps}):    {E_mean:.4f} +/- {E_std:.4f}")
-    print(f"    Magnetizzazione a equilibrio:          {m_mean:.4f} +/- {m_std:.4f}")
-
-    if not is_real_data:
-        print(f"\n  NOTA: Per usare dati reali, esegui 'make thermalization' per generare")
-        print(f"        thermalization_data.dat, poi ri-esegui 'make analyze'.")
-
 
 def plot_heat_with_errors(data):
     """
@@ -1173,9 +1171,3 @@ def plot_heat_with_errors(data):
 # Esegui lo script
 if __name__ == '__main__':
     main()
-
-    # Genera anche il grafico di termalizzazione
-    print("\n" + "="*70)
-    print("  GRAFICO TERMALIZZAZIONE")
-    print("="*70)
-    plot_thermalization()
