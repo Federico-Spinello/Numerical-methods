@@ -1050,7 +1050,7 @@ def plot_thermalization():
                 label=f'Termalizzazione ({thermalization_steps} steps)', zorder=1)
     ax2.axvspan(thermalization_steps, n_steps, alpha=0.3, color='green',
                 label='Misure (equilibrio)', zorder=1)
-    ax2.plot(steps_cold, m_cold, 'r-', linewidth=0.5, zorder=2)
+    ax2.plot(steps_cold, m_cold, 'b-', linewidth=0.5, zorder=2)
     ax2.axhspan(m_mean - m_std, m_mean + m_std,
                 xmin=(thermalization_steps/n_steps), xmax=1.0,
                 color='gray', alpha=0.3, label=r'$\pm 1\sigma$', zorder=3)
@@ -1093,9 +1093,9 @@ def plot_thermalization():
              label=f'Hot Start', zorder=3)
     ax1.axhline(E_mean, color='black', linestyle='--', linewidth=1.5,
                 label=f'Media equilibrio (cold): {E_mean:.3f}', zorder=4)
-    ax1.axvline(250, color='cyan', linestyle=':', linewidth=1.5, label='1000 steps', zorder=5)
-    ax1.axvline(1250, color='orange', linestyle=':', linewidth=1.5,
-                label=f'{1250} steps', zorder=5)
+    ax1.axvline(1000, color='purple', linestyle=':', linewidth=1.5, label='1000 steps', zorder=5)
+    ax1.axvline(6000, color='orange', linestyle=':', linewidth=1.5,
+                label=f'{6000} steps', zorder=5)
 
     ax1.set_xlabel('Cluster updates', fontsize=12)
     ax1.set_ylabel('Energia per spin $E/N$', fontsize=12)
@@ -1112,8 +1112,8 @@ def plot_thermalization():
              label=f'Hot Start', zorder=3)
     ax2.axhline(m_mean, color='black', linestyle='--', linewidth=1.5,
                 label=f'Media equilibrio (cold): {m_mean:.3f}', zorder=4)
-    ax2.axvline(750, color='orange', linestyle=':', linewidth=1.5,
-                label=f'{750} steps', zorder=5)
+    ax2.axvline(3000, color='orange', linestyle=':', linewidth=1.5,
+                label=f'{3000} steps', zorder=5)
 
     ax2.set_xlabel('Cluster updates', fontsize=12)
     ax2.set_ylabel('Magnetizzazione $|m|$', fontsize=12)
