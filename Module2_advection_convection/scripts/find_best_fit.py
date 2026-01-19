@@ -193,7 +193,7 @@ if best_data is not None:
     print(f"\nGrafico salvato in: {output_path}")
 
     # Salva anche i dati del miglior fit
-    fit_info_path = "./images/best_fit_info.txt"
+    fit_info_path = "./best_fit_info.txt"
     with open(fit_info_path, 'w') as f:
         f.write(f"Miglior fit trovato per l'analisi spettrale\n")
         f.write(f"Criterio: minima distanza da P = 2.0 in unità di sigma\n")
@@ -204,8 +204,7 @@ if best_data is not None:
         f.write(f"  P = {best_fit_params[1]:.8f} ± {best_fit_errors[1]:.8f}\n")
         f.write(f"\nDistanza da P = 2.0 (valore teorico regime viscoso):\n")
         f.write(f"  |P - 2.0| / sigma_P = {best_distance_from_2:.6f} sigma\n")
-        f.write(f"  Deviazione assoluta: {abs(best_fit_params[1] - 2.0):.6e}\n")
-        f.write(f"  Errore su P: {best_fit_errors[1]:.6e}\n")
+        f.write(f"  Deviazione assoluta (|P - 2.0|): {abs(best_fit_params[1] - 2.0):.6e}\n")
         f.write(f"\nRange di fit:\n")
         f.write(f"  k_min = {k_min}\n")
         f.write(f"  k_max = {k_max}\n")
