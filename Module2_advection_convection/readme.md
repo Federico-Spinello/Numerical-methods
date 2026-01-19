@@ -15,28 +15,32 @@ Questo progetto implementa un risolutore numerico per l'equazione di Burgers:
 ```
 .
 ├── Makefile              # Build automation
-├── README.md             
-├── plot.py               # Visualizzazione risultati simulazione
-├── plot_shock.py         # Visualizzazione analisi shock
-├── sim                   # Programma compilato 
-│                         # (generato automaticamente dal make)
+├── README.md
+├── requirements.txt      # Dipendenze Python
+├── params.txt            # Parametri simulazione
+├── sim                   # Programma compilato (generato da make)
 ├── src/
 │   ├── main.c                  # Entry point e dispatcher
 │   ├── sim_adv_conv.c          # Simulazione standard
 │   ├── sim_shock_analysis.c    # Analisi shock vs viscosità
-│   ├── functions.c             # Derivate, RHS, integratore RK4, FFT
-│   └── init.c                  # Condizioni iniziali
+│   ├── functions.c             # Derivate, RHS, integratore RK4, FFT, condizioni iniziali
+│   └── params.c                # Gestione parametri
 ├── include/
 │   ├── functions.h
-│   └── init.h
+│   └── params.h
+├── scripts/
+│   ├── plot.py                 # Visualizzazione risultati simulazione
+│   ├── plot_shock.py           # Visualizzazione analisi shock
+│   └── find_best_fit.py        # Analisi best fit spettrale
 ├── data/                 # Output simulazioni (generato)
 │   ├── data_*.dat        # Stati u(x) per ogni timestep salvato
 │   ├── fft_*.dat         # Spettri di potenza FFT
 │   └── shock_values.txt  # Risultati analisi shock
 ├── screen/               # Screenshot salvati (generato)
 │   └── *.pdf             # Plot salvati con tasto 'P'
-└── myenv/                # Virtual environment Python 
-                          # (serve a far girare python)
+├── paper/                # Paper LaTeX
+│   └── paper.tex
+└── venv/                 # Virtual environment Python (generato da make setup)
 ```
 
 ## 🔧 Dipendenze
@@ -49,12 +53,13 @@ Questo progetto implementa un risolutore numerico per l'equazione di Burgers:
 
 ## 🚀 Compilazione ed Esecuzione
 
-### Compilare
+### Setup iniziale (solo prima volta)
 ```bash
-make
+make setup          # Crea venv e installa dipendenze Python
+make                # Compila il programma C
 ```
 
-### Modalità 1: Simulazione Standard
+### Simulazione Standard
 Esegue una simulazione completa con salvataggio dei dati temporali e plot animato:
 ```bash
 make run
@@ -62,9 +67,10 @@ make run
 Questo comando:
 1. Pulisce i vecchi dati
 2. Esegue `./sim sim` (simulazione standard)
-3. Genera automaticamente i plot animati con `plot.py`
+3. Trova il best fit spettrale
+4. Genera automaticamente i plot animati
 
-### Modalità 2: Analisi Shock
+### Analisi Shock
 Esegue un'analisi parametrica della pendenza dello shock al variare della viscosità:
 ```bash
 make shock
@@ -72,23 +78,20 @@ make shock
 Questo comando:
 1. Esegue `./sim shock` (analisi shock)
 2. Salva i risultati in `./data/shock_values.txt`
-3. Genera automaticamente i plot animati con `plot_shock_analysis.py`
-
-
-Per visualizzare i risultati:
-```bash
-python plot_shock.py
-```
+3. Genera automaticamente i plot
 
 ### Solo plot (senza ricalcolare)
 ```bash
 make plot           # Plot simulazione standard
 make pshock         # Plot analisi shock
+make bestfit        # Trova best fit spettrale
 ```
 
-### Pulire tutto
+### Pulizia
 ```bash
-make clean
+make clean          # Rimuove eseguibile e dati
+make cleanscreen    # Rimuove screenshot
+make help           # Mostra tutti i comandi
 ```
 
 ## 🧮 Metodi Numerici Implementati
