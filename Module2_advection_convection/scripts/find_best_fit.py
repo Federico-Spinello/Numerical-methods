@@ -193,7 +193,7 @@ if best_data is not None:
     print(f"\nGrafico salvato in: {output_path}")
 
     # Salva anche i dati del miglior fit
-    fit_info_path = "./best_fit_info.txt"
+    fit_info_path = "./risultati.txt"
     with open(fit_info_path, 'w') as f:
         f.write(f"Miglior fit trovato per l'analisi spettrale\n")
         f.write(f"Criterio: minima distanza da P = 2.0 in unità di sigma\n")
