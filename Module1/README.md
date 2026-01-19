@@ -55,8 +55,8 @@ Tutti i risultati sono in eccellente accordo con la soluzione esatta di Onsager.
 ### Setup Iniziale (solo prima volta)
 
 ```bash
-# 1. Configura virtual environment Python
-make venv-setup
+# 1. Configura virtual environment Python leggendo i prerequisiti
+make setup
 
 # 2. Compila il programma C
 make all
@@ -72,17 +72,19 @@ make full
 ### Comandi Individuali
 
 ```bash
-make all          # Solo compilazione
-make run          # Simulazioni sequenziali
-make run-parallel # Simulazioni parallele (consigliato)
-make analyze      # Solo analisi dati e grafici
-make full         # Simulazioni + analisi
-make paper        # Aggiorna i dati ottenuti nel paper, poi lo compila
-make fullpaper    # Simulazioni + analisi + paper
-make clean        # Pulizia file compilati
-make cleanall     # Pulizia totale (dati + grafici)
-make cleanpaper   # Pulizia file inerenti al paper (tranne .tex)
-make help         # Mostra tutti i comandi disponibili
+make all             # Solo compilazione
+make run             # Esegue simulazioni (parallelo)
+make analyze         # Solo analisi dati e grafici
+make full            # Pipeline: compila + simula + analizza
+
+make thermalization  # Test termalizzazione (cold/hot start)
+make paper           # Compila paper LaTeX
+make fullpaper       # Pipeline completa + paper
+
+make clean           # Pulizia file compilati
+make cleanpaper      # Pulizia file ausiliari LaTeX
+make cleanall        # Pulizia totale (dati + grafici + compilati)
+make help            # Mostra tutti i comandi disponibili
 ```
 
 ---
@@ -364,8 +366,7 @@ Speedup stimato: ~14×
 ### Comandi
 
 ```bash
-make run-parallel    # Esegue simulazioni in parallelo (consigliato)
-make run             # Esegue simulazioni sequenzialmente
+make run             # Esegue simulazioni in parallelo
 ```
 
 ---
@@ -552,12 +553,16 @@ Script completo per analisi dati:
 #### 3. Automazione (Makefile)
 
 **Target principali**:
+- `make setup`: Crea venv e installa dipendenze da requirements.txt
 - `make all`: Compila il programma C
-- `make run`: Esegue tutte le simulazioni (legge `params.txt`)
-- `make analyze`: Analizza dati e genera grafici (venv automatico)
+- `make run`: Esegue simulazioni in parallelo (legge `params.txt`)
+- `make analyze`: Analizza dati e genera grafici
 - `make full`: Pipeline completa (compila + simula + analizza)
-- `make test`: Test rapido (~2 minuti)
+- `make thermalization`: Test termalizzazione (cold/hot start)
+- `make paper`: Compila paper LaTeX
+- `make fullpaper`: Pipeline completa + paper
 - `make clean`: Rimuove file compilati
+- `make cleanpaper`: Rimuove file ausiliari LaTeX
 - `make cleanall`: Rimuove tutto (dati + grafici + compilati)
 - `make help`: Mostra tutti i comandi
 
@@ -616,7 +621,7 @@ MEASUREMENTS = 200000
 
 ```bash
 # 1. Prima volta: setup
-make venv-setup
+make setup
 
 # 2. Modifica parametri (opzionale)
 nano params.txt
@@ -948,11 +953,11 @@ Il Makefile gestisce **automaticamente** il virtual environment Python:
 
 ```bash
 # Setup iniziale (solo prima volta)
-make venv-setup
+make setup
 
 # Cosa fa:
-# 1. Crea venv/ se non esiste
-# 2. Installa pip, setuptools, wheel
+# 1. Crea venv/
+# 2. Aggiorna pip
 # 3. Installa numpy, matplotlib, scipy da requirements.txt
 # 4. Tutto pronto!
 ```

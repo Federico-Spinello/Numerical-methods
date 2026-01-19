@@ -26,13 +26,13 @@ EXECUTABLE = $(BIN_DIR)/ising_simulation
 VENV_DIR = venv
 PYTHON = python3
 VENV_PYTHON = $(VENV_DIR)/bin/python3
-VENV_PIP = $(VENV_DIR)/bin/pip3
+VENV_PIP = $(VENV_DIR)/bin/pip
 
 # ============================================================================
 # Target principali
 # ============================================================================
 
-.PHONY: all clean run analyze full help dirs venv-setup cleanvenv paper cleanpaper update-paper fullpaper thermalization
+.PHONY: all clean run analyze full help setup paper cleanpaper fullpaper thermalization cleanall debug
 
 # Default: compila
 all: $(EXECUTABLE)
@@ -41,7 +41,7 @@ all: $(EXECUTABLE)
 $(EXECUTABLE): $(OBJECTS) | $(BIN_DIR)
 	@echo "Linking $@..."
 	$(CC) $(OBJECTS) -o $@ $(LDFLAGS)
-	@echo "✓ Build completato: $@"
+	@echo "Build completato: $@"
 
 # Crea bin directory se non esiste
 $(BIN_DIR):
@@ -52,56 +52,49 @@ $(BIN_DIR)/%.o: $(SRC_DIR)/%.c $(HEADERS) | $(BIN_DIR)
 	@echo "Compiling $<..."
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Crea directory necessarie
-dirs:
-	@mkdir -p $(BIN_DIR)
-	@mkdir -p $(DATA_DIR)
-	@mkdir -p $(PLOTS_DIR)
-	@echo "✓ Directory create"
+# ============================================================================
+# Setup ambiente
+# ============================================================================
+
+# Setup completo: crea venv e installa dipendenze
+setup:
+	@echo "=== SETUP AMBIENTE ==="
+	@echo "Creazione virtual environment..."
+	@rm -rf $(VENV_DIR)
+	@$(PYTHON) -m venv $(VENV_DIR)
+	@echo "Installazione dipendenze da requirements.txt..."
+	@./$(VENV_DIR)/bin/pip install --upgrade pip > /dev/null
+	@./$(VENV_DIR)/bin/pip install -r requirements.txt
+	@echo ""
+	@echo "Setup completato!"
+	@echo "Pacchetti installati:"
+	@./$(VENV_DIR)/bin/pip list | grep -E '(numpy|matplotlib|scipy)'
 
 # ============================================================================
 # Esecuzione simulazioni
 # ============================================================================
 
 # Esegui simulazioni in PARALLELO (usa tutti i core)
-run: $(EXECUTABLE) dirs
+run: $(EXECUTABLE)
 	@echo "=== AVVIO SIMULAZIONI PARALLELE ==="
-	@echo "Questo userà tutti i core disponibili per velocizzare l'esecuzione"
-	@if [ -d $(VENV_DIR) ]; then \
-		$(VENV_PYTHON) $(SCRIPTS_DIR)/parallel_run.py; \
-	else \
-		$(PYTHON) $(SCRIPTS_DIR)/parallel_run.py; \
-	fi
-	@echo "✓ Simulazioni parallele completate"
-
-# ============================================================================
-# Python Virtual Environment
-# ============================================================================
-
-# Crea e configura il virtual environment
-$(VENV_DIR)/bin/activate:
-	@touch $(VENV_DIR)/bin/activate
-
-# Setup completo del venv (target utente)
-venv-setup: $(VENV_DIR)/bin/activate
-	@echo "✓ Virtual environment configurato"
-	@echo "Pacchetti installati:"
-	@$(VENV_PIP) list | grep -E '(numpy|matplotlib|scipy)'
+	@mkdir -p $(DATA_DIR)
+	@mkdir -p $(PLOTS_DIR)
+	@$(VENV_PYTHON) $(SCRIPTS_DIR)/parallel_run.py
+	@echo "Simulazioni completate"
 
 # ============================================================================
 # Analisi dati
 # ============================================================================
 
-# Analizza tutti i dati e genera grafici (gestisce automaticamente il venv)
-analyze: $(VENV_DIR)/bin/activate
+# Analizza tutti i dati e genera grafici
+analyze:
 	@echo "=== ANALISI DATI ==="
 	@if [ ! -d "$(DATA_DIR)" ]; then \
 		echo "ERRORE: Directory $(DATA_DIR) non trovata. Esegui 'make run' prima."; \
 		exit 1; \
 	fi
-	@echo "Attivazione virtual environment..."
 	@$(VENV_PYTHON) $(SCRIPTS_DIR)/analyze.py
-	@echo "✓ Analisi completata"
+	@echo "Analisi completata"
 	@echo "Grafici salvati in $(PLOTS_DIR)/"
 
 # ============================================================================
@@ -112,52 +105,38 @@ analyze: $(VENV_DIR)/bin/activate
 full: all run analyze
 	@echo ""
 	@echo "======================================"
-	@echo "✓ PIPELINE COMPLETA TERMINATA"
+	@echo "PIPELINE COMPLETA TERMINATA"
 	@echo "======================================"
 	@echo "Eseguibile: $(EXECUTABLE)"
 	@echo "Dati:       $(DATA_DIR)/"
 	@echo "Grafici:    $(PLOTS_DIR)/"
-	@echo ""
-
-# ============================================================================
-# Debug e sviluppo
-# ============================================================================
-
-# Compila con debug symbols
-debug: CFLAGS = $(DEBUGFLAGS) -Wall -Wextra -std=c99
-debug: clean $(EXECUTABLE)
-	@echo "✓ Build debug completato"
 
 # ============================================================================
 # Test termalizzazione
 # ============================================================================
 
-# Compila ed esegue test termalizzazione (genera dati reali E(t), m(t) per cold e hot start)
+# Compila ed esegue test termalizzazione (genera dati E(t), m(t) per cold e hot start)
 thermalization: $(BIN_DIR)
-	@echo "=== COMPILAZIONE TEST TERMALIZZAZIONE ==="
+	@echo "=== TEST TERMALIZZAZIONE ==="
 	$(CC) $(CFLAGS) -o $(BIN_DIR)/thermalization_test \
 		$(SRC_DIR)/thermalization_test.c \
 		$(SRC_DIR)/geometry.c \
 		$(SRC_DIR)/random.c \
 		$(SRC_DIR)/pcg32min.c \
 		$(LDFLAGS)
-	@echo "✓ Compilazione completata"
-	@echo ""
-	@echo "=== ESECUZIONE TEST ==="
 	@mkdir -p $(DATA_DIR)
 	$(BIN_DIR)/thermalization_test
 	@echo ""
-	@echo "✓ Test completato. Dati salvati in:"
-	@echo "  - $(DATA_DIR)/thermalization_cold.dat (cold start)"
-	@echo "  - $(DATA_DIR)/thermalization_hot.dat (hot start)"
+	@echo "Dati salvati in:"
+	@echo "  - $(DATA_DIR)/thermalization_cold.dat"
+	@echo "  - $(DATA_DIR)/thermalization_hot.dat"
 
 # ============================================================================
 # LaTeX Paper
 # ============================================================================
 
-# Compila paper LaTeX 
+# Compila paper LaTeX
 paper:
-	@echo ""
 	@echo "=== COMPILAZIONE PAPER ==="
 	@if ! command -v pdflatex >/dev/null 2>&1; then \
 		echo "ERRORE: pdflatex non installato!"; \
@@ -165,48 +144,52 @@ paper:
 		exit 1; \
 	fi
 	@mkdir -p $(PAPER_DIR)
-	@echo "Rimozione PDF precedente..."
 	@rm -f $(PAPER_DIR)/paper.pdf
-	@echo "Compilazione paper.tex (prima passata)..."
-	cd $(PAPER_DIR) && pdflatex -interaction=nonstopmode paper.tex > /dev/null
-	@echo "Seconda passata (per riferimenti)..."
-	cd $(PAPER_DIR) && pdflatex -interaction=nonstopmode paper.tex > /dev/null
-	@echo "✓ Paper compilato: $(PAPER_DIR)/paper.pdf"
+	@cd $(PAPER_DIR) && pdflatex -interaction=nonstopmode paper.tex > /dev/null
+	@cd $(PAPER_DIR) && pdflatex -interaction=nonstopmode paper.tex > /dev/null
+	@echo "Paper compilato: $(PAPER_DIR)/paper.pdf"
 
-# Pipeline completa: simula -> analizza -> aggiorna paper -> compila PDF
+# Pipeline completa: simula -> analizza -> compila PDF
 fullpaper: all run analyze paper
 	@echo ""
 	@echo "======================================"
-	@echo "✓ PAPER COMPLETO GENERATO"
+	@echo "PAPER COMPLETO GENERATO"
 	@echo "======================================"
 	@echo "File finale: $(PAPER_DIR)/paper.pdf"
-	@echo ""
 
 # Rimuovi file ausiliari LaTeX
 cleanpaper:
-	@echo "Pulizia file LaTeX ausiliari..."
-	rm -f $(PAPER_DIR)/paper.aux $(PAPER_DIR)/paper.log $(PAPER_DIR)/paper.out \
-	      $(PAPER_DIR)/paper.toc $(PAPER_DIR)/paper.bbl $(PAPER_DIR)/paper.blg $(PAPER_DIR)/paper.pdf
-	@echo "✓ File LaTeX puliti"
+	@echo "Pulizia file LaTeX..."
+	@rm -f $(PAPER_DIR)/paper.aux $(PAPER_DIR)/paper.log $(PAPER_DIR)/paper.out \
+	       $(PAPER_DIR)/paper.toc $(PAPER_DIR)/paper.bbl $(PAPER_DIR)/paper.blg $(PAPER_DIR)/paper.pdf
+	@echo "File LaTeX puliti"
+
+# ============================================================================
+# Debug
+# ============================================================================
+
+# Compila con debug symbols
+debug: CFLAGS = $(DEBUGFLAGS) -Wall -Wextra -std=c99
+debug: clean $(EXECUTABLE)
+	@echo "Build debug completato"
 
 # ============================================================================
 # Pulizia
 # ============================================================================
 
-# Rimuovi file oggetto e eseguibile
+# Rimuovi file compilati
 clean:
 	@echo "Pulizia file compilati..."
-	rm -f $(OBJECTS)
-	rm -rf $(BIN_DIR)
-	@echo "✓ Pulizia completata"
+	@rm -f $(OBJECTS)
+	@rm -rf $(BIN_DIR)
+	@echo "Pulizia completata"
 
-# Rimuovi anche dati e grafici
-cleanall: clean
+# Rimuovi tutto (dati + grafici + compilati)
+cleanall: clean cleanpaper
 	@echo "Rimozione dati e grafici..."
-	rm -rf $(DATA_DIR)
-	rm -rf $(PLOTS_DIR)
-	@echo "✓ Pulizia totale completata"
-
+	@rm -rf $(DATA_DIR)
+	@rm -rf $(PLOTS_DIR)
+	@echo "Pulizia totale completata"
 
 # ============================================================================
 # Help
@@ -217,20 +200,23 @@ help:
 	@echo "  Makefile - Simulazione Ising 2D"
 	@echo "======================================"
 	@echo ""
-	@echo "Target disponibili:"
+	@echo "Setup iniziale:"
+	@echo "  make setup           Crea venv e installa dipendenze"
 	@echo ""
-	@echo "  make all          - Compila il programma"
-	@echo "  make run - Esegue simulazioni in PARALLELO (usa tutti i core)"
-	@echo "  make test         - Esegue test rapido"
-	@echo "  make analyze      - Analizza dati e genera grafici + JSON (auto venv)"
-	@echo "  make full         - Pipeline completa: compila->simula->analizza"
+	@echo "Compilazione ed esecuzione:"
+	@echo "  make all             Compila il programma"
+	@echo "  make run             Esegue simulazioni (parallelo)"
+	@echo "  make analyze         Analizza dati e genera grafici"
+	@echo "  make full            Pipeline: compila + simula + analizza"
 	@echo ""
-	@echo "  make update	   - Aggiorna paper.tex con risultati da JSON"
-	@echo "  make paper        - Aggiorna paper.tex e compila PDF"
-	@echo "  make fullpaper    - Pipeline completa: simula->analizza->paper PDF"
-	@echo "  make cleanpaper   - Rimuove file ausiliari LaTeX"
+	@echo "Test e paper:"
+	@echo "  make thermalization  Test termalizzazione (cold/hot start)"
+	@echo "  make paper           Compila paper LaTeX"
+	@echo "  make fullpaper       Pipeline completa + paper"
 	@echo ""
-	@echo "  make venv-setup   - Configura virtual environment Python"
-	@echo "  make clean        - Rimuove file compilati"
-	@echo "  make cleanall     - Rimuove tutto (dati + grafici + compilati)"
-	@echo "  make help         - Mostra questo messaggio"
+	@echo "Pulizia:"
+	@echo "  make clean           Rimuove file compilati"
+	@echo "  make cleanpaper      Rimuove file ausiliari LaTeX"
+	@echo "  make cleanall        Rimuove tutto"
+	@echo ""
+	@echo "  make help            Mostra questo messaggio"
