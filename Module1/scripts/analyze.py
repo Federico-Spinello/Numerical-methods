@@ -1094,8 +1094,8 @@ def plot_thermalization():
     ax1.axhline(E_mean, color='black', linestyle='--', linewidth=1.5,
                 label=f'Media equilibrio (cold): {E_mean:.3f}', zorder=4)
     ax1.axvline(250, color='cyan', linestyle=':', linewidth=1.5, label='1000 steps', zorder=5)
-    ax1.axvline(1750, color='orange', linestyle=':', linewidth=1.5,
-                label=f'{1750} steps', zorder=5)
+    ax1.axvline(1250, color='orange', linestyle=':', linewidth=1.5,
+                label=f'{1250} steps', zorder=5)
 
     ax1.set_xlabel('Cluster updates', fontsize=12)
     ax1.set_ylabel('Energia per spin $E/N$', fontsize=12)
@@ -1112,7 +1112,8 @@ def plot_thermalization():
              label=f'Hot Start', zorder=3)
     ax2.axhline(m_mean, color='black', linestyle='--', linewidth=1.5,
                 label=f'Media equilibrio (cold): {m_mean:.3f}', zorder=4)
-
+    ax2.axvline(750, color='orange', linestyle=':', linewidth=1.5,
+                label=f'{750} steps', zorder=5)
 
     ax2.set_xlabel('Cluster updates', fontsize=12)
     ax2.set_ylabel('Magnetizzazione $|m|$', fontsize=12)
