@@ -4,10 +4,15 @@
  * Esegue DUE simulazioni (cold start e hot start) e salva E(t), m(t)
  * ad ogni step durante la termalizzazione per analisi.
  *
- * Parametri letti da params.txt:
- *   THERM_L      - Dimensione reticolo
- *   THERM_T      - Temperatura
- *   THERM_NSTEPS - Numero di cluster updates
+ * Parametri OBBLIGATORI letti da params.txt:
+ *   THERM_L           - Dimensione reticolo
+ *   THERM_T           - Temperatura
+ *   THERMALIZATION    - Steps di termalizzazione
+ *   MEASUREMENTS      - Steps di misura
+ *   THERMALIZATION_HOT - Steps per hot start
+ *
+ * nsteps_cold = THERMALIZATION + MEASUREMENTS
+ * nsteps_hot  = THERMALIZATION_HOT
  */
 
 #include <stdio.h>
@@ -23,7 +28,7 @@
 #define OUTPUT_FILE_HOT "data/thermalization_hot.dat"
 #define PARAMS_FILE "params.txt"
 
-/* Funzione per leggere parametri da params.txt */
+/* Funzione per leggere parametri da params.txt - NESSUN DEFAULT */
 static int read_params(int *L, double *T, int *nsteps_cold, int *nsteps_hot) {
     FILE *fp = fopen(PARAMS_FILE, "r");
     if (!fp) {
@@ -32,12 +37,8 @@ static int read_params(int *L, double *T, int *nsteps_cold, int *nsteps_hot) {
     }
 
     char line[256];
-    int found_L = 0, found_T = 0;
-    int found_therm = 0, found_meas = 0, found_hot = 0;
-
-    // Valori default
-    *nsteps_cold = 410000;
-    *nsteps_hot = 10000;
+    int found_L = 0, found_T = 0, found_therm = 0, found_meas = 0, found_hot = 0;
+    int thermalization = 0, measurements = 0;
 
     while (fgets(line, sizeof(line), fp)) {
         // Salta commenti e righe vuote
@@ -46,7 +47,7 @@ static int read_params(int *L, double *T, int *nsteps_cold, int *nsteps_hot) {
         // Rimuovi newline
         line[strcspn(line, "\n")] = 0;
 
-        // Parsing
+        // Parsing - IMPORTANTE: THERMALIZATION_HOT deve essere controllato PRIMA di THERMALIZATION
         if (strstr(line, "THERM_L") && strstr(line, "=")) {
             char *eq = strchr(line, '=');
             if (eq) {
@@ -71,46 +72,49 @@ static int read_params(int *L, double *T, int *nsteps_cold, int *nsteps_hot) {
         else if (strstr(line, "THERMALIZATION") && strstr(line, "=") && !strstr(line, "HOT")) {
             char *eq = strchr(line, '=');
             if (eq) {
+                thermalization = atoi(eq + 1);
                 found_therm = 1;
-                // nsteps_cold = THERMALIZATION + MEASUREMENTS
             }
         }
         else if (strstr(line, "MEASUREMENTS") && strstr(line, "=")) {
             char *eq = strchr(line, '=');
             if (eq) {
+                measurements = atoi(eq + 1);
                 found_meas = 1;
             }
         }
     }
-
-    // Rileggi per calcolare nsteps_cold = THERMALIZATION + MEASUREMENTS
-    rewind(fp);
-    int therm_val = 10000, meas_val = 400000;
-    while (fgets(line, sizeof(line), fp)) {
-        if (line[0] == '#' || line[0] == '\n') continue;
-        line[strcspn(line, "\n")] = 0;
-
-        if (strstr(line, "THERMALIZATION") && strstr(line, "=") && !strstr(line, "HOT")) {
-            char *eq = strchr(line, '=');
-            if (eq) therm_val = atoi(eq + 1);
-        }
-        else if (strstr(line, "MEASUREMENTS") && strstr(line, "=")) {
-            char *eq = strchr(line, '=');
-            if (eq) meas_val = atoi(eq + 1);
-        }
-    }
-    *nsteps_cold = therm_val + meas_val;
-
     fclose(fp);
 
-    if (!found_L || !found_T) {
-        fprintf(stderr, "ERRORE: parametri THERM_L, THERM_T non trovati in %s\n", PARAMS_FILE);
+    // Verifica che TUTTI i parametri siano stati trovati
+    int error = 0;
+    if (!found_L) {
+        fprintf(stderr, "ERRORE: parametro THERM_L non trovato in %s\n", PARAMS_FILE);
+        error = 1;
+    }
+    if (!found_T) {
+        fprintf(stderr, "ERRORE: parametro THERM_T non trovato in %s\n", PARAMS_FILE);
+        error = 1;
+    }
+    if (!found_therm) {
+        fprintf(stderr, "ERRORE: parametro THERMALIZATION non trovato in %s\n", PARAMS_FILE);
+        error = 1;
+    }
+    if (!found_meas) {
+        fprintf(stderr, "ERRORE: parametro MEASUREMENTS non trovato in %s\n", PARAMS_FILE);
+        error = 1;
+    }
+    if (!found_hot) {
+        fprintf(stderr, "ERRORE: parametro THERMALIZATION_HOT non trovato in %s\n", PARAMS_FILE);
+        error = 1;
+    }
+
+    if (error) {
         return 0;
     }
 
-    if (!found_hot) {
-        printf("NOTA: THERMALIZATION_HOT non trovato, uso default %d\n", *nsteps_hot);
-    }
+    // Calcola nsteps_cold = THERMALIZATION + MEASUREMENTS
+    *nsteps_cold = thermalization + measurements;
 
     return 1;
 }
