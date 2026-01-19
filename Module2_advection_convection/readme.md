@@ -274,43 +274,10 @@ double nu_max = dx * dx * pi * 300.0 / 2.0;  // Valore massimo
 int n_nu = 20;                                // Numero di punti
 int use_log_scale = 1;                        // 1=log, 0=lineare
 ```
-
-## 🧪 Casi Test Suggeriti
-
-### 1. Shock Formation (discontinuità)
-```c
-init_sin(u, x, nx, L);  
-nu = 0.000251;  // (= dx * dx * pi * 4000.0 / 2.0) viscosità molto bassa
-```
-Osserva la formazione di shock e la cascata energetica verso k alti, successivamente la viscosità ammazza tutto, quindi lo spettro ritorna ad essere piccato verso k molto bassi.
-
-### 2. Diffusione Dominante
-```c
-double x0 = 0.5; double width = 0.03;
-init_gauss(u, x, nx, x0, width);
-nu = 0.1;  // viscosità alta
-```
-Osserva la dissipazione energetica e l'allargamento della gaussiana.
-
-### 3. Turbolenza 1D
-```c
-init_brutto(u, x, nx, x0, width);  // multi-scala
-nu = dx*dx*pi*400.0/2.0;  // intermedio
-```
-Osserva l'interazione tra scale diverse e redistribuzione energia.
-
-### 4. Analisi Parametrica Shock
-```bash
-make shock
-python plot_shock.py
-```
-Studia la relazione tra viscosità e ripidità degli shock. Aspettati una relazione di power-law: |du/dx| ∝ ν^(-α).
-
 ## 🐛 Debug e Troubleshooting
 
 ### Simulazione instabile (NaN, overflow)
-- Riduci `CFL_adv` e `CFL_diff`
-- Aumenta `safety` factor
+- Riduci `CFL_adv` e/o `CFL_diff` e/o `safety` factor
 
 ### Malloc errors
 - Riduci `nx` o `nt` se la memoria è insufficiente
@@ -325,18 +292,6 @@ Studia la relazione tra viscosità e ripidità degli shock. Aspettati una relazi
 - Verifica che `matplotlib` usi backend `TkAgg`
 - Controlla che i file in `./data/` esistano e non siano vuoti
 
-## 📚 Riferimenti Teorici
-
-**Equazione di Burgers**: Modello semplificato delle equazioni di Navier-Stokes, usato per studiare:
-- Formazione di shock in fluidi
-- Turbolenza 1D
-- Metodi numerici per PDEs non lineari
-
-**Importanza fisica**:
-- Competizione tra avvezione (steepening) e diffusione (smoothing)
-- Conservazione della massa
-- Cascata energetica (Kolmogorov in 3D)
-- Relazione shock thickness ~ ν/u (teoria di Rankine-Hugoniot)
 
 ## 📝 Note Tecniche
 
@@ -348,6 +303,11 @@ Studia la relazione tra viscosità e ripidità degli shock. Aspettati una relazi
 - Salvataggio ordinato automatico per analisi shock
 
 ## 🎯 Workflow Tipico
+
+### Setup iniziale (solo la prima volta)
+```bash
+make setup        # Setup iniziale del venv
+```
 
 ### Esplorazione Iniziale
 ```bash
@@ -362,12 +322,6 @@ python plot_shock.py  # Visualizza risultati
 # Premi P per salvare il grafico
 ```
 
-### Modifica e Test
-```bash
-# Edita src/sim_adv_conv.c o src/sim_shock_analysis.c
-make              # Ricompila
-make run          # Testa
-```
 
 ## 👤 Autore
 
