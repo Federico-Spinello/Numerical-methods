@@ -23,7 +23,7 @@ Questo progetto implementa un risolutore numerico per l'equazione di Burgers:
 │   ├── main.c                  # Entry point e dispatcher
 │   ├── sim_adv_conv.c          # Simulazione standard
 │   ├── sim_shock_analysis.c    # Analisi shock vs viscosità
-│   ├── functions.c             # Derivate, RHS, integratore RK4, FFT, condizioni iniziali
+│   ├── functions.c             # Derivate, RHS, integratore RK4, FFT
 │   └── params.c                # Gestione parametri
 ├── include/
 │   ├── functions.h
@@ -171,25 +171,6 @@ Parametri di default:
 | `x_shock` | 0.5 | Posizione dove misurare du/dx |
 
 Il coefficiente di avvezione `c` non è utilizzato perché sto facendo una simulazione non lineare, ma se volessi tornare al caso lineare, mi basterebbe sostituire la `c` al posto della `u[i]` quando calcolo il `RHS`.
-
-## 📊 Condizioni Iniziali Disponibili
-
-Nel file `init.c` sono implementate diverse condizioni iniziali:
-
-```c
-init_sin(u, x, nx, L);                          // Sinusoide
-init_gauss(u, x, nx, x0, width);               // Gaussiana
-init_square(u, x, nx, L, x0, width);           // Onda quadra
-init_sawtooth(u, x, nx, L, x0);                // Dente di sega
-init_steep_tanh(u, x, nx, L, x0, a);           // Tanh ripida
-init_brutto(u, x, nx, x0, width);              // Multi-gaussiana
-```
-
-Per cambiare condizione iniziale, modifica la linea in `sim_adv_conv.c` o `sim_shock_analysis.c`:
-```c
-init_sin(u, x, nx, L);  // ← cambia questa funzione
-```
-Ovviamente devi definire le variabili aggiuntive nel caso servissero, come ad esempio: `x0` o `width`.
 
 ## 📈 Output e Visualizzazione
 
